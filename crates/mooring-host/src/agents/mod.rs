@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 pub(crate) mod claude;
 mod claude_suggestion;
 pub(crate) mod codex;
-mod codex_background;
+pub(crate) mod codex_background;
 mod codex_items;
 mod codex_script;
 mod cursor;

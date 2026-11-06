@@ -14,6 +14,13 @@ pub(super) fn left_running(tail: &str) -> bool {
     left && !working
 }
 
+/// The process whose children are Codex's commands; tests stand a shell in for it with
+/// `MOORING_CODEX_PROCESS`.
+pub(crate) fn process_name() -> String {
+    std::env::var("MOORING_CODEX_PROCESS")
+        .unwrap_or_else(|_| mooring_core::agent::Agent::Codex.executable().to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::left_running;

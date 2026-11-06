@@ -210,11 +210,8 @@ fn look_for_commands(
         claimed.clear();
         return;
     }
-    let name = std::env::var("MOORING_CODEX_PROCESS");
-    let executable = name
-        .as_deref()
-        .unwrap_or(mooring_core::agent::Agent::Codex.executable());
-    let commands = crate::cli_commands::commands_of(executable);
+    let executable = crate::agents::codex_background::process_name();
+    let commands = crate::cli_commands::commands_of(&executable);
     for (session, log) in looking {
         let mine: Vec<(String, u32)> = commands
             .iter()
