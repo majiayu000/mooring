@@ -131,7 +131,11 @@ if sys.argv[1] == 'prepare':
     child_sources = None
     if os.environ.get('MOORING_FIXTURE_CHILD_ADAPTERS'):
         import visual_child_fixture
-        child_sources = (visual_child_fixture.prepare_more(root, home, now)
+        child_sources = (visual_child_fixture.prepare_names(root, home, now)
+                         if os.environ['MOORING_FIXTURE_CHILD_ADAPTERS'] == 'names'
+                         else visual_child_fixture.prepare_kimi_gemini(root, home, now)
+                         if os.environ['MOORING_FIXTURE_CHILD_ADAPTERS'] == 'kimi-gemini'
+                         else visual_child_fixture.prepare_more(root, home, now)
                          if os.environ['MOORING_FIXTURE_CHILD_ADAPTERS'] == 'more'
                          else visual_child_fixture.prepare(root, home, BIN, now))
     env = {'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'HOME': str(home), 'CODEX_HOME': str(home / '.codex'), 'CLAUDE_CONFIG_DIR': str(home / '.claude'), 'LANG': 'en_US.UTF-8'}

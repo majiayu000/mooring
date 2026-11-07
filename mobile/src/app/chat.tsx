@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { approve, deny, oops } from '@/actions';
 import { catchUp } from '@/remote/gap';
+import { mergeChat as merge, readChatPage } from '@/remote/chatHistory';
 import { refresh, remote, speaksV2, supports, useHub, write } from '@/remote/hub';
 import { UNSURE } from '@/remote/named';
 import { useAsk } from '@/remote/useAsk';
@@ -29,15 +30,6 @@ import { useTheme } from '@/ui/theme';
 import { useSettled } from '@/ui/useHold';
 
 type Pending = { text: string; at: number };
-
-/** A reindexed log gives its messages new seqs; the same words at the same time are one. */
-const key = (m: Message) => `${m.at}|${m.role}|${m.text}`;
-
-function merge(have: Message[], got: Message[]): Message[] {
-  const seen = new Set(have.map(key));
-  const fresh = got.filter((m) => !seen.has(key(m)));
-  return fresh.length ? [...have, ...fresh].sort((a, b) => a.seq - b.seq) : have;
-}
 
 const POLL_MS = 2000;
 const NO_CONVERSATION = /没有 Agent 对话/;
@@ -68,6 +60,7 @@ export default function Chat() {
   const [pending, setPending] = useState<Pending[]>([]);
   const [term, setTerm] = useState(false);
   const [picking, setPicking] = useState<ModeKind | null>(null);
+  const generation = useRef<string | null>(null);
   const last = useRef(0);
   last.current = messages.at(-1)?.seq ?? 0;
 
@@ -75,6 +68,7 @@ export default function Chat() {
   // card names another conversation (a new one started in the same terminal).
   const shown = useRef<string | null>(null);
   const cardSession = card?.session ?? null;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: A session notification must refetch the terminal's current conversation.
   useEffect(() => {
     const r = online ? remote(machine) : null;
     if (!r) {
@@ -83,27 +77,29 @@ export default function Chat() {
     }
     let live = true;
     const extra = tools ? { tools: true } : {};
-    r.request('chat', { terminal, limit: 50, ...extra })
+    const requestedGeneration = generation.current;
+    readChatPage<Message>(fields => r.request('chat', fields), { terminal, limit: 50, ...extra }, requestedGeneration)
       .then(async (page) => {
-        if (!live) return;
+        if (!live || (shown.current === page.session && generation.current !== requestedGeneration)) return;
         const same = shown.current === null || shown.current === page.session;
-        const had = same ? last.current : 0;
+        const had = same && !page.reset ? last.current : 0;
+        generation.current = page.generation;
         shown.current = page.session;
-        if (!same) setReadAll(false);
+        if (!same || page.reset) setReadAll(false);
         setSession(page.session);
         setMore(page.more);
         setPartial(!!page.partial);
         // Another conversation: its messages replace the old one's, not join them.
-        setMessages((have) => (same ? merge(have, page.messages) : page.messages));
+        setMessages((have) => (same ? merge(have, page.messages, page.reset) : page.messages));
         setError('');
         // Back after a while: what came between the last one seen and this page.
         const gap = await catchUp<Message>(
-          (after, limit) => r.request('chat', { session: page.session, after, limit, ...extra }).then((p) => p.messages),
+          (after, limit) => r.request('chat', { session: page.session, after, limit, ...extra }).then((p) => p.generation === page.generation ? p.messages : []),
           had,
           page.messages[0]?.seq,
           page.more,
         );
-        if (live && gap.length && shown.current === page.session) setMessages((have) => merge(have, gap));
+        if (live && gap.length && shown.current === page.session && generation.current === page.generation) setMessages((have) => merge(have, gap));
       })
       // A shell whose Agent has not started has no conversation yet: the empty state says
       // so, and the card naming a session brings this effect back.
@@ -120,18 +116,27 @@ export default function Chat() {
   const focused = useIsFocused();
   useEffect(() => {
     if (!session || !online || !focused) return;
+    let polling = false;
+    let live = true;
     const timer = setInterval(async () => {
+      if (polling) return;
       const r = remote(machine);
       if (!r) return;
+      polling = true;
+      const requestedGeneration = generation.current;
       try {
-        const page = await r.request('chat', { session, after: last.current, ...(tools ? { tools: true } : {}) });
-        // An answer for a conversation this page has since left is dropped.
-        if (page.messages.length && shown.current === session) setMessages((have) => merge(have, page.messages));
+        const page = await readChatPage<Message>(fields => r.request('chat', fields),
+          { session, after: last.current, ...(tools ? { tools: true } : {}) }, requestedGeneration);
+        // Drop a late answer after another request reset the history or left this screen.
+        if (!live || shown.current !== session || generation.current !== requestedGeneration) return;
+        generation.current = page.generation;
+        if (page.reset) { setMore(page.more); setPartial(!!page.partial); setReadAll(false); }
+        if (page.messages.length || page.reset) setMessages((have) => merge(have, page.messages, page.reset));
       } catch {
         // The next tick or the reconnect tries again.
-      }
+      } finally { polling = false; }
     }, POLL_MS);
-    return () => clearInterval(timer);
+    return () => { live = false; clearInterval(timer); };
   }, [session, online, machine, tools, focused]);
 
   // A sent message shows until the log has it, or for half a minute.
@@ -153,23 +158,27 @@ export default function Chat() {
     if (!canReadBack && !(more && messages.length)) return;
     paging.current = true;
     const extra = tools ? { tools: true } : {};
+    const requestedGeneration = generation.current;
     try {
       if (canReadBack) {
         setReadingBack(true);
         setReadFailed('');
         // Each call reads for at most about a second; a stretch of the log may hold no message.
-        let reply;
-        do {
+        let reply = await r.request('backfill', { session });
+        while (!reply.added && !reply.done && shown.current === session && generation.current === requestedGeneration) {
           reply = await r.request('backfill', { session });
-        } while (!reply.added && !reply.done && shown.current === session);
+        }
         if (reply.done) setReadAll(true);
       }
       const before = messages[0] ? { before: messages[0].seq } : { limit: 50 };
-      const page = await r.request('chat', { session, ...before, ...extra });
-      if (shown.current !== session) return;
+      const page = await readChatPage<Message>(fields => r.request('chat', fields),
+        { session, ...before, ...extra }, requestedGeneration);
+      if (shown.current !== session || generation.current !== requestedGeneration) return;
+      generation.current = page.generation;
+      if (page.reset) setReadAll(false);
       setMore(page.more);
       setPartial(!!page.partial);
-      setMessages((have) => merge(have, page.messages));
+      setMessages((have) => merge(have, page.messages, page.reset));
     } catch (e) {
       setReadFailed((e as Error).message);
     } finally {

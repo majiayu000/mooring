@@ -453,6 +453,8 @@ pub enum Reply {
     /// `partial`: older lines of its log have not been read in yet ([`Request::Backfill`]).
     Chat {
         messages: Vec<ChatMessage>,
+        /// A byte-offset cursor is valid only within this history generation.
+        generation: String,
         more: bool,
         #[serde(default)]
         partial: bool,

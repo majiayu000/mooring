@@ -48,6 +48,21 @@ fn built_in_keys_and_commands_are_what_was_stored_before() {
 }
 
 #[test]
+fn added_agents_resume_with_their_actual_cli_flags() {
+    for (agent, start, resume) in [
+        (Agent::Hermes, "hermes", "hermes --resume 'session'"),
+        (Agent::Droid, "droid", "droid --resume 'session'"),
+        (Agent::Pi, "pi", "pi --session 'session'"),
+        (Agent::Omp, "omp", "omp --resume 'session'"),
+        (Agent::Dsh, "dsh tui", "dsh tui --resume 'session'"),
+    ] {
+        assert_eq!(agent.command(), start);
+        assert_eq!(agent.resume_command("session", &[]), resume);
+        assert_eq!(Agent::from_executable(agent.executable()), Some(agent));
+    }
+}
+
+#[test]
 fn a_key_no_longer_registered_reads_back_as_itself() {
     let gone: Agent = serde_json::from_str("\"removed-cli\"").unwrap();
     assert_eq!(gone.key(), "removed-cli");
@@ -63,7 +78,10 @@ fn a_declaration_registers_after_the_built_ins() {
     let (specs, report) = load(&d, &home());
     assert_eq!(
         specs.iter().map(|s| s.key).collect::<Vec<_>>(),
-        ["Codex", "Claude", "Grok", "Cursor", "Qoder", "aider"]
+        [
+            "Codex", "Claude", "Grok", "Cursor", "Qoder", "Hermes", "Droid", "Pi", "Omp", "Dsh",
+            "Kimi", "Gemini", "aider"
+        ]
     );
     let aider = &specs[builtin().len()];
     assert_eq!(
@@ -142,7 +160,7 @@ fn api_2_events_load_and_are_checked() {
     let d = dir("events");
     let base = |api: u32, events: &str| {
         format!(
-            r#"{{"api":{api},"id":"gemini","name":"Gemini","executable":"gemini","start":"gemini","resume":"gemini --resume {{id}}",
+            r#"{{"api":{api},"id":"fixture-agent","name":"Fixture","executable":"fixture-cli","start":"fixture-cli","resume":"fixture-cli --resume {{id}}",
             "transcripts":{{"root":"~/c","session":"/s","cwd":"/c","events":{events}}}}}"#
         )
     };

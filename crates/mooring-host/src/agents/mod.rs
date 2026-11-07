@@ -20,14 +20,22 @@ mod codex_items;
 mod codex_script;
 mod cursor;
 mod declared;
+mod droid;
+mod dsh;
+mod dsh_store;
+mod gemini;
 mod grok;
 mod grok_subagents;
+mod hermes;
+mod hermes_store;
 pub mod hooks;
+mod kimi;
 pub mod modes;
 pub mod modes_drive;
 pub use tool_lines::{describe_tool, Described, ToolCallLine, ToolOutput};
 pub mod mirror;
 mod permission;
+mod pi;
 mod qoder;
 mod tool_lines;
 mod trust;
@@ -300,6 +308,13 @@ pub fn adapter(agent: Agent) -> &'static dyn Adapter {
         Agent::Grok => &grok::Grok,
         Agent::Cursor => &cursor::Cursor,
         Agent::Qoder => &qoder::Qoder,
+        Agent::Hermes => &hermes::Hermes,
+        Agent::Droid => &droid::Droid,
+        Agent::Pi => &pi::Pi(false),
+        Agent::Omp => &pi::Pi(true),
+        Agent::Dsh => &dsh::Dsh,
+        Agent::Kimi => &kimi::Kimi,
+        Agent::Gemini => &gemini::Gemini,
         _ => declared()
             .iter()
             .find(|d| d.agent() == agent)
@@ -438,6 +453,38 @@ fn home_dir(home: &Path, var: &str, default: &str) -> PathBuf {
     std::env::var_os(var)
         .map(PathBuf::from)
         .unwrap_or_else(|| home.join(default))
+}
+
+/// Only an explicit, unambiguous selector is process-to-session evidence. A trailing `=`
+/// in `names` permits that spelling; Pi, for example, does not accept `--session=id`.
+/// Consume known string options so a prompt containing a selector stays just a prompt.
+fn session_arg<'a>(args: &'a [String], names: &[&str], values: &[&str]) -> Option<&'a str> {
+    let mut found = None;
+    let mut args = args.iter().skip(1);
+    while let Some(arg) = args.next() {
+        if arg == "--" {
+            break;
+        }
+        if values.contains(&arg.as_str()) {
+            args.next();
+            continue;
+        }
+        let value = if !arg.ends_with('=') && names.contains(&arg.as_str()) {
+            Some(args.next()?.as_str())
+        } else {
+            names
+                .iter()
+                .filter(|n| n.ends_with('='))
+                .find_map(|n| arg.strip_prefix(n))
+        };
+        if let Some(value) = value {
+            if found.is_some() || value.is_empty() || value.starts_with('-') {
+                return None;
+            }
+            found = Some(value);
+        }
+    }
+    found
 }
 
 /// Cards hide sessions run in throwaway directories; a managed terminal still shows them.

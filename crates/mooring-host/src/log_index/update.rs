@@ -543,6 +543,8 @@ impl Index {
         if !seeded || replaced {
             tx.execute("DELETE FROM session_records WHERE path=?1", [&key])
                 .map_err(err)?;
+            tx.execute("INSERT INTO log_generations VALUES(?1,?2) ON CONFLICT(path) DO UPDATE SET generation=excluded.generation",
+                rusqlite::params![key, uuid::Uuid::new_v4().to_string()]).map_err(err)?;
         }
         // Subagents with their own log: the child's log is the evidence of what it is doing.
         let now = mooring_core::content::now();

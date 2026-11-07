@@ -9,6 +9,8 @@
 | 日期 | 决定 | 状态 |
 |---|---|---|
 | 2026-11-07 | [试两周按提交复盘返工](2026-11-07-rework-review.md) | 采用，11-21 复查 |
+| 2026-11-07 | [Agent 接入按实际边界回归，缺项不记通过](2026-11-07-agent-regression.md) | 采用 |
+| 2026-11-07 | [Hermes、Droid、Pi/omp、DSH 按来源接入现有 Adapter](2026-11-07-more-agent-inputs.md) | 采用 |
 | 2026-11-07 | [子 Agent 沿现有 Adapter 接入，共用父子索引和侧栏](2026-11-07-subagents-use-existing-adapters.md) | 采用 |
 | 2026-11-06 | [看改动从会话记录取，合成净改动，盖在终端上](2026-11-06-turn-changes-from-the-log.md) | 采用 |
 | 2026-11-06 | [手机聊天页显示 Claude 的下一句建议，用两周再定去留](2026-11-06-phone-input-suggestion.md) | 采用 |

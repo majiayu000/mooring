@@ -66,6 +66,7 @@ pub(super) fn dispatch(shared: &Shared, request: Request) -> io::Result<Reply> {
             let partial = floor > 0 || host.workspace.content.get(&session).is_some_and(skipped);
             Ok(Reply::Chat {
                 messages,
+                generation: host.index.chat_generation(&s.transcript)?,
                 more,
                 partial,
             })

@@ -4,7 +4,11 @@
 use std::path::{Path, PathBuf};
 
 /// Where naming a CLI is the point.
-const OWNERS: &[&str] = &["mooring-host/src/agents/", "mooring-core/src/agent.rs"];
+const OWNERS: &[&str] = &[
+    "mooring-host/src/agents/",
+    "mooring-core/src/agent.rs",
+    "mooring-core/src/agent_builtin.rs",
+];
 
 /// Code that is not a test module but builds fixtures, each with why it may name one.
 const FIXTURES: &[(&str, &str)] = &[
@@ -22,7 +26,20 @@ const FIXTURES: &[(&str, &str)] = &[
     ),
 ];
 
-const NAMED: &[&str] = &["Agent::Codex", "Agent::Claude", "Agent::Grok"];
+const NAMED: &[&str] = &[
+    "Agent::Codex",
+    "Agent::Claude",
+    "Agent::Grok",
+    "Agent::Hermes",
+    "Agent::Droid",
+    "Agent::Pi",
+    "Agent::Omp",
+    "Agent::Dsh",
+    "Agent::Cursor",
+    "Agent::Qoder",
+    "Agent::Kimi",
+    "Agent::Gemini",
+];
 
 fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(dir).unwrap().flatten() {

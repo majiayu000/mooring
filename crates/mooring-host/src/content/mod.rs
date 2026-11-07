@@ -257,7 +257,7 @@ pub struct Parser {
     pub(crate) rules: u32,
 }
 /// Bumped when parsing rules change what a saved state means; such states are reseeded.
-pub const RULES: u32 = 13;
+pub const RULES: u32 = 14;
 fn current_rules<S: serde::Serializer>(_: &u32, s: S) -> Result<S::Ok, S::Error> {
     s.serialize_u32(RULES)
 }

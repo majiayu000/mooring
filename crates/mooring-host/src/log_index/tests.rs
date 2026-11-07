@@ -486,6 +486,13 @@ fn cursors_survive_restart_partial_lines_truncation_and_inode_replacement() {
         i.counts, before,
         "duplicate event performs no file read/write"
     );
+    // An index from the previous build has records but no generation table.
+    i.db.execute_batch("DROP TABLE log_generations").unwrap();
+    drop(i);
+    let mut i = f.index();
+    assert_eq!(i.cached().unwrap()[0].cli_id, "one");
+    let original_generation = i.chat_generation(path.to_str().unwrap()).unwrap();
+    assert_eq!(original_generation, "", "old records need no backfill");
     fs::write(&path, line("x")).unwrap();
     assert_eq!(
         i.update(Agent::Codex, &path, false)
@@ -494,6 +501,8 @@ fn cursors_survive_restart_partial_lines_truncation_and_inode_replacement() {
             .cli_id,
         "x"
     );
+    let truncated_generation = i.chat_generation(path.to_str().unwrap()).unwrap();
+    assert_ne!(original_generation, truncated_generation);
     let replacement = f.0.join("replacement");
     fs::write(&replacement, line("replacement")).unwrap();
     fs::rename(replacement, &path).unwrap();
@@ -503,6 +512,10 @@ fn cursors_survive_restart_partial_lines_truncation_and_inode_replacement() {
             .unwrap()
             .cli_id,
         "replacement"
+    );
+    assert_ne!(
+        truncated_generation,
+        i.chat_generation(path.to_str().unwrap()).unwrap()
     );
     fs::remove_file(&path).unwrap();
     assert!(i.update(Agent::Codex, &path, false).unwrap().is_none());

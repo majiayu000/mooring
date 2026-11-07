@@ -23,6 +23,29 @@ pub fn dir(home: &Path, agent: Agent) -> PathBuf {
     home.join(".local/share/mooring/sources").join(agent.key())
 }
 
+/// Preserve byte cursors when the snapshot only grows. A rewritten prefix gets a new
+/// inode, so the index can invalidate the old records and chat pagination together.
+pub(super) fn publish_snapshot(path: &Path, bytes: &[u8]) -> io::Result<bool> {
+    use std::io::Write;
+    match std::fs::read(path) {
+        Ok(old) if old == bytes => return Ok(false),
+        Ok(old) if bytes.starts_with(&old) => {
+            std::fs::OpenOptions::new()
+                .append(true)
+                .open(path)?
+                .write_all(&bytes[old.len()..])?;
+        }
+        Ok(_) => {
+            let temp = path.with_extension("tmp");
+            std::fs::write(&temp, bytes)?;
+            std::fs::rename(temp, path)?;
+        }
+        Err(e) if e.kind() == io::ErrorKind::NotFound => std::fs::write(path, bytes)?,
+        Err(e) => return Err(e),
+    }
+    Ok(true)
+}
+
 /// One running mirror: its source, and the flag that ends its thread.
 struct Running {
     key: &'static str,
@@ -35,6 +58,8 @@ static RUNNING: Mutex<Vec<Running>> = Mutex::new(Vec::new());
 /// start and whenever plugins change: a mirror whose CLI went away or changed its source ends,
 /// a new one starts.
 pub fn sync(home: &Path) {
+    super::hermes_store::start(home);
+    super::dsh_store::start(home);
     let mut running = RUNNING.lock().unwrap_or_else(|e| e.into_inner());
     let wanted: Vec<(Agent, RecordSource)> = Agent::all()
         .into_iter()

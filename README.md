@@ -44,7 +44,7 @@ Terminals live in a background host (`mooring serve`), not in the window. Quit, 
 
 ### 03 · Any agent CLI
 
-Claude Code, Codex, Grok Build, Cursor Agent and Qoder CLI are built in; Mooring reads their transcripts and hooks for state, answers and evidence. Others are added with a JSON plugin (OpenCode ships as an example). Any program can report its own state with one `printf`, using the OSC 7501 status protocol:
+Claude Code, Codex, Grok Build, Cursor Agent, Qoder CLI, Hermes, Factory Droid, Pi, oh-my-pi and DeepSeek Harness are built in. Mooring reads the session records and events each tool provides; see the [integration boundaries](docs/decisions/2026-11-07-more-agent-inputs.md) for supported formats, child relationships and state signals. Others are added with a JSON plugin (OpenCode ships as an example). Any program can report its own state with one `printf`, using the OSC 7501 status protocol:
 
 ```sh
 printf '\033]7501;state=working:app=deploy:progress=30\033\\'

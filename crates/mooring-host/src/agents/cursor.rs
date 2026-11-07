@@ -213,21 +213,20 @@ impl Adapter for Cursor {
             || script.is_some_and(|s| s.contains("/cursor-agent/versions/"))
     }
     fn process_session(&self, _pid: u32, args: &[String]) -> (Option<String>, bool) {
-        let mut found = None;
-        let mut args = args.iter().skip(1);
-        while let Some(arg) = args.next() {
-            let value = match arg.as_str() {
-                "--resume" => args.next().map(String::as_str),
-                _ => arg.strip_prefix("--resume="),
-            };
-            if let Some(id) = value.and_then(|v| uuid::Uuid::parse_str(v).ok()) {
-                if found.is_some() {
-                    return (None, false);
-                }
-                found = Some(id.to_string());
-            }
-        }
-        (found, false)
+        let id = super::session_arg(
+            args,
+            &["--resume", "--resume="],
+            &[
+                "--model",
+                "--workspace",
+                "--worktree-base",
+                "--output-format",
+                "--api-key",
+            ],
+        )
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+        .map(|id| id.to_string());
+        (id, false)
     }
     fn is_transcript(&self, path: &Path) -> bool {
         chat_id(path).is_some_and(|id| {
