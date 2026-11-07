@@ -1,0 +1,40 @@
+name: Probe claude-quota on Windows
+
+# Throwaway: lives on this branch only, never merged.
+on:
+  push:
+    branches:
+      - probe/claude-quota-windows
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: 0
+    steps:
+      - name: Keep line endings
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+      - name: Install the pinned Rust toolchain
+        run: rustup toolchain install --no-self-update
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2
+        with:
+          version: 0.16.0
+          use-cache: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare pinned native dependencies
+        shell: bash
+        run: sh bootstrap.sh
+      - name: Build mooring
+        run: cargo build -p mooring-host --bin mooring
+      - name: Install Claude Code from npm
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Probe
+        shell: bash
+        run: bash .github/probe/claude-quota-windows.sh
