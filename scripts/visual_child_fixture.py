@@ -73,8 +73,10 @@ def launch(root, sources, rpc):
             if t.get('pid'): break
             assert time.monotonic() < deadline, 'terminal timeout'
             time.sleep(.1)
-        r = rpc(root, {'Hook': {'runtime': runtime, 'pid': t['pid'], 'cli_session_id': PARENT, 'transcript': str(transcript), 'ended': False, 'event': None}})
-        assert 'Error' not in r, r
+        r = rpc(root, {'Hook': {'runtime': runtime, 'pid': t['pid'], 'cli_session_id': ('session_' + PARENT if runtime == 'Kimi' else PARENT), 'transcript': str(transcript), 'ended': False, 'event': None}})
+        # The comparison's old binary has no adapter for either new CLI. It still
+        # launches the identical mock terminal, but cannot bind its transcript.
+        assert 'Error' not in r or (runtime in ('Kimi', 'Gemini') and 'transcript has no CLI identity' in str(r)), r
 
 
 def prepare_more(root, home, now):
@@ -110,3 +112,36 @@ def prepare_more(root, home, now):
                          'completed_at': None if n == 0 else stamp(end),
                          'status': ['running', 'completed', 'cancelled'][n]}, ensure_ascii=False))
     return [('pqoder', 'qodercli', 'Qoder', qp), ('pgrok', 'grok', 'Grok', gp)]
+
+
+def prepare_kimi_gemini(root, home, now):
+    from datetime import datetime, timezone
+    stamp = lambda at: datetime.fromtimestamp(at, timezone.utc).isoformat()
+    cwd = str(root / 'projects/工作空间')
+    session = home / f'.kimi-code/sessions/wd_fixture/session_{PARENT}'
+    session.mkdir(parents=True)
+    (session / 'state.json').write_text(json.dumps({'workDir': cwd, 'title': 'Kimi 并行任务',
+        'agents': {'main': {'type': 'main', 'parentAgentId': None},
+                   **{f'agent-{n}': {'type': 'sub', 'parentAgentId': 'main'} for n in range(3)}}}, ensure_ascii=False))
+    project = home / '.gemini/tmp/fixture'
+    project.mkdir(parents=True)
+    (project / '.project_root').write_text(cwd)
+    gp = project / f'chats/session-2026-11-07T09-00-{PARENT[:8]}.jsonl'
+    kp = session / 'agents/main/wire.jsonl'
+    for n in range(4):
+        start, end = now - 200 + n * 10, now - 50 + n * 10
+        kpath = kp if n == 0 else session / f'agents/agent-{n - 1}/wire.jsonl'
+        gpath = gp if n == 0 else project / 'chats' / PARENT / (CHILDREN[n - 1] + '.jsonl')
+        krecords = [{'type': 'config.update', 'cwd': cwd, 'time': start * 1000},
+                    {'type': 'turn.prompt', 'input': [{'type': 'text', 'text': 'Kimi 并行任务' if n == 0 else TASKS[n - 1]}], 'time': start * 1000}]
+        grecords = [{'sessionId': PARENT if n == 0 else CHILDREN[n - 1], 'projectHash': 'fixture', 'kind': 'main' if n == 0 else 'subagent'},
+                    {'type': 'user', 'id': f'ask-{n}', 'content': 'Gemini 并行任务' if n == 0 else TASKS[n - 1], 'timestamp': stamp(start)}]
+        if n >= 2:
+            krecords.append({'type': 'turn.ended', 'reason': 'completed' if n == 2 else 'cancelled', 'time': end * 1000})
+            grecords.append({'type': 'gemini', 'id': 'finish', 'content': '', 'timestamp': stamp(end),
+                             'toolCalls': [{'id': 'finish-call', 'name': 'complete_task', 'status': 'success', 'timestamp': stamp(end)}]}
+                            if n == 2 else {'type': 'error', 'id': 'error', 'content': 'Agent failed', 'timestamp': stamp(end)})
+        for path, records in [(kpath, krecords), (gpath, grecords)]:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(''.join(json.dumps(r, ensure_ascii=False) + '\n' for r in records))
+    return [('pkimi', 'kimi', 'Kimi', kp), ('pgemini', 'gemini', 'Gemini', gp)]

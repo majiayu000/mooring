@@ -1,7 +1,7 @@
 //! Which CLIs Mooring knows, as data. The rest of Mooring asks here or the daemon's
 //! `agents` adapters and never names a CLI itself (`tests/architecture_boundary.rs`).
 //!
-//! The built-in three are compiled in. Any other comes from a declaration in
+//! Built-in adapters are compiled in. Any other comes from a declaration in
 //! `~/.config/mooring/agents/*.json`, loaded once per process by `install`; a later file
 //! with the same id replaces an earlier one, and a file that cannot be used is reported,
 //! never fatal. See docs/architecture/PLUGIN_SYSTEM.md.
@@ -30,6 +30,8 @@ impl Agent {
     pub const Pi: Agent = Agent("Pi");
     pub const Omp: Agent = Agent("Omp");
     pub const Dsh: Agent = Agent("Dsh");
+    pub const Kimi: Agent = Agent("Kimi");
+    pub const Gemini: Agent = Agent("Gemini");
 
     /// Every registered CLI, built-in first, in the order the app offers them.
     pub fn all() -> Vec<Agent> {
@@ -392,94 +394,9 @@ pub fn report() -> &'static [Loaded] {
     &registry().report
 }
 
-fn builtin() -> Vec<AgentSpec> {
-    let spec = |key, name: &str, executable: &str, start: &str, resume: &str| AgentSpec {
-        key,
-        name: name.into(),
-        executable: executable.into(),
-        scripts: vec![],
-        start: start.into(),
-        resume: resume.into(),
-        transcripts: None,
-        source: None,
-        prompt: PromptLine::default(),
-        file: None,
-        screen_rules: None,
-        interrupt: None,
-        answers: None,
-        input_hint: vec![],
-    };
-    let marked = |spec: AgentSpec, markers: &[&str], pins_own| AgentSpec {
-        prompt: PromptLine {
-            markers: markers.iter().map(|m| (*m).to_owned()).collect(),
-            pins_own,
-        },
-        ..spec
-    };
-    vec![
-        // Temporary until daemon-backed Codex can prove a TUI-to-session association.
-        // Codex keeps the turn's ask on its first row while the answer runs on.
-        marked(
-            spec("Codex", "Codex", "codex", "codex", "codex resume {id}"),
-            &["›"],
-            true,
-        ),
-        marked(
-            spec(
-                "Claude",
-                "Claude Code",
-                "claude",
-                // Started bare: its SessionStart hook names the conversation, and keeps
-                // naming it after `/clear` or `/resume`, which an id on argv cannot.
-                "claude",
-                "claude --resume {id}",
-            ),
-            &["❯", ">"],
-            false,
-        ),
-        // The TUI cannot be given an id; the daemon reads it from Grok's own registry.
-        spec("Grok", "Grok Build", "grok", "grok", "grok --resume {id}"),
-        // Cursor names a new chat itself; the daemon reads it from the transcript folder.
-        spec(
-            "Cursor",
-            "Cursor Agent",
-            "cursor-agent",
-            "cursor-agent",
-            "cursor-agent --resume {id}",
-        ),
-        // No way to choose the id up front; the transcript names it.
-        spec(
-            "Qoder",
-            "Qoder CLI",
-            "qodercli",
-            "qodercli",
-            "qodercli --resume {id}",
-        ),
-        spec(
-            "Hermes",
-            "Hermes Agent",
-            "hermes",
-            "hermes",
-            "hermes --resume {id}",
-        ),
-        spec(
-            "Droid",
-            "Factory Droid",
-            "droid",
-            "droid",
-            "droid --resume {id}",
-        ),
-        spec("Pi", "Pi", "pi", "pi", "pi --session {id}"),
-        spec("Omp", "oh-my-pi", "omp", "omp", "omp --resume {id}"),
-        spec(
-            "Dsh",
-            "DeepSeek Harness",
-            "dsh",
-            "dsh tui",
-            "dsh tui --resume {id}",
-        ),
-    ]
-}
+#[path = "agent_builtin.rs"]
+mod builtins;
+use builtins::builtin;
 
 /// `$XDG_CONFIG_HOME/mooring`, else `~/.config/mooring`.
 pub fn config_dir() -> Option<PathBuf> {

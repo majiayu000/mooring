@@ -23,11 +23,13 @@ mod declared;
 mod droid;
 mod dsh;
 mod dsh_store;
+mod gemini;
 mod grok;
 mod grok_subagents;
 mod hermes;
 mod hermes_store;
 pub mod hooks;
+mod kimi;
 pub mod modes;
 pub mod modes_drive;
 pub use tool_lines::{describe_tool, Described, ToolCallLine, ToolOutput};
@@ -311,6 +313,8 @@ pub fn adapter(agent: Agent) -> &'static dyn Adapter {
         Agent::Pi => &pi::Pi(false),
         Agent::Omp => &pi::Pi(true),
         Agent::Dsh => &dsh::Dsh,
+        Agent::Kimi => &kimi::Kimi,
+        Agent::Gemini => &gemini::Gemini,
         _ => declared()
             .iter()
             .find(|d| d.agent() == agent)
