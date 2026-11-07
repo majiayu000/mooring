@@ -20,14 +20,20 @@ mod codex_items;
 mod codex_script;
 mod cursor;
 mod declared;
+mod droid;
+mod dsh;
+mod dsh_store;
 mod grok;
 mod grok_subagents;
+mod hermes;
+mod hermes_store;
 pub mod hooks;
 pub mod modes;
 pub mod modes_drive;
 pub use tool_lines::{describe_tool, Described, ToolCallLine, ToolOutput};
 pub mod mirror;
 mod permission;
+mod pi;
 mod qoder;
 mod tool_lines;
 mod trust;
@@ -300,6 +306,11 @@ pub fn adapter(agent: Agent) -> &'static dyn Adapter {
         Agent::Grok => &grok::Grok,
         Agent::Cursor => &cursor::Cursor,
         Agent::Qoder => &qoder::Qoder,
+        Agent::Hermes => &hermes::Hermes,
+        Agent::Droid => &droid::Droid,
+        Agent::Pi => &pi::Pi(false),
+        Agent::Omp => &pi::Pi(true),
+        Agent::Dsh => &dsh::Dsh,
         _ => declared()
             .iter()
             .find(|d| d.agent() == agent)

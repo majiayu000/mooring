@@ -44,7 +44,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer ./run.sh
 
 ### 03 · 什么 Agent 都能接
 
-内置 Claude Code、Codex、Grok Build、Cursor Agent、Qoder CLI，Mooring 读它们的对话记录和 hook 来判断状态、找回答和验证证据。别的 CLI 用一个 JSON 插件接入（自带 OpenCode 示例）。任何程序都能用 OSC 7501 状态协议，一行 `printf` 报告自己的状态：
+内置 Claude Code、Codex、Grok Build、Cursor Agent、Qoder CLI，以及 Hermes、Factory Droid、Pi、oh-my-pi、DeepSeek Harness。Mooring 读取各工具提供的会话记录和事件；各新增工具的父子关系、格式和状态边界见[接入说明](docs/decisions/2026-11-07-more-agent-inputs.md)。别的 CLI 用一个 JSON 插件接入（自带 OpenCode 示例）。任何程序都能用 OSC 7501 状态协议，一行 `printf` 报告自己的状态：
 
 ```sh
 printf '\033]7501;state=working:app=deploy:progress=30\033\\'

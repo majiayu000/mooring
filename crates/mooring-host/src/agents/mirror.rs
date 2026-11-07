@@ -35,6 +35,8 @@ static RUNNING: Mutex<Vec<Running>> = Mutex::new(Vec::new());
 /// start and whenever plugins change: a mirror whose CLI went away or changed its source ends,
 /// a new one starts.
 pub fn sync(home: &Path) {
+    super::hermes_store::start(home);
+    super::dsh_store::start(home);
     let mut running = RUNNING.lock().unwrap_or_else(|e| e.into_inner());
     let wanted: Vec<(Agent, RecordSource)> = Agent::all()
         .into_iter()

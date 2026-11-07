@@ -25,6 +25,11 @@ impl Agent {
     pub const Grok: Agent = Agent("Grok");
     pub const Cursor: Agent = Agent("Cursor");
     pub const Qoder: Agent = Agent("Qoder");
+    pub const Hermes: Agent = Agent("Hermes");
+    pub const Droid: Agent = Agent("Droid");
+    pub const Pi: Agent = Agent("Pi");
+    pub const Omp: Agent = Agent("Omp");
+    pub const Dsh: Agent = Agent("Dsh");
 
     /// Every registered CLI, built-in first, in the order the app offers them.
     pub fn all() -> Vec<Agent> {
@@ -449,6 +454,29 @@ fn builtin() -> Vec<AgentSpec> {
             "qodercli",
             "qodercli",
             "qodercli --resume {id}",
+        ),
+        spec(
+            "Hermes",
+            "Hermes Agent",
+            "hermes",
+            "hermes",
+            "hermes --resume {id}",
+        ),
+        spec(
+            "Droid",
+            "Factory Droid",
+            "droid",
+            "droid",
+            "droid --resume {id}",
+        ),
+        spec("Pi", "Pi", "pi", "pi", "pi --session {id}"),
+        spec("Omp", "oh-my-pi", "omp", "omp", "omp --resume {id}"),
+        spec(
+            "Dsh",
+            "DeepSeek Harness",
+            "dsh",
+            "dsh tui",
+            "dsh tui --resume {id}",
         ),
     ]
 }

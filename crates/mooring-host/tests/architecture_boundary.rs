@@ -22,7 +22,16 @@ const FIXTURES: &[(&str, &str)] = &[
     ),
 ];
 
-const NAMED: &[&str] = &["Agent::Codex", "Agent::Claude", "Agent::Grok"];
+const NAMED: &[&str] = &[
+    "Agent::Codex",
+    "Agent::Claude",
+    "Agent::Grok",
+    "Agent::Hermes",
+    "Agent::Droid",
+    "Agent::Pi",
+    "Agent::Omp",
+    "Agent::Dsh",
+];
 
 fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
     for entry in std::fs::read_dir(dir).unwrap().flatten() {
