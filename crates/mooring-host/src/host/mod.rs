@@ -241,6 +241,23 @@ impl Host {
     }
     /// Asks the CLIs off the lock (`claude agents --json`, Codex `thread/read`) and applies the
     /// result. Returns when to look again for sessions held back by the rate limit.
+    /// Current sessions showing a dialog projected from one of their subagents.
+    fn child_dialogs(&self) -> Vec<AgentSession> {
+        let w = &self.workspace;
+        let now = mooring_core::content::now();
+        let projected = |s: &&AgentSession| {
+            mooring_core::status::of(w, s, now) == mooring_core::status::Status::Waiting
+                && w.content
+                    .get(&s.id)
+                    .is_some_and(|c| c.signal == crate::content::CHILD_SIGNAL)
+        };
+        w.agent_sessions
+            .iter()
+            .filter(|s| s.current)
+            .filter(projected)
+            .cloned()
+            .collect()
+    }
     fn reconcile(&mut self, shared: &Shared, sessions: Vec<AgentSession>) -> Option<Instant> {
         let now = Instant::now();
         let mut later = None;

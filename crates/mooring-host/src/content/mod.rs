@@ -17,7 +17,7 @@ mod children;
 mod db;
 mod result;
 mod rules;
-pub use children::{children, link_child, Children};
+pub use children::{children, link_child, Children, CHILD_SIGNAL};
 pub use db::{card, load, save, save_records, save_state, schema};
 use rules::*;
 pub(crate) use rules::{claims_done, re, user_text};
@@ -627,7 +627,7 @@ impl Parser {
             _ => (),
         }
         self.card.keep_subagents(kids.subagents.clone());
-        self.settle(before, "子 Agent", at, String::new());
+        self.settle(before, CHILD_SIGNAL, at, String::new());
     }
     /// `detail` is the card's `signal_detail` when the turn changed, built only then.
     fn settle(&mut self, before: Turn, signal: &str, at: u64, detail: String) {
