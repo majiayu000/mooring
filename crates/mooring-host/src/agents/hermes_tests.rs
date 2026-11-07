@@ -86,10 +86,24 @@ fn hermes_rewrites_replay_without_stale_answers_or_invented_children() {
         snapshot(&source, &out).unwrap().is_empty(),
         "unchanged snapshots do not churn inodes"
     );
+    let child_path = path("child").to_string_lossy().into_owned();
+    let first_generation = index.chat_generation(&child_path).unwrap();
+    assert!(!first_generation.is_empty());
+    let fork_path = path("fork").to_string_lossy().into_owned();
+    let fork_generation = index.chat_generation(&fork_path).unwrap();
+    db.execute("INSERT INTO messages(session_id,role,content,finish_reason,timestamp) VALUES('fork','assistant','Added','stop',?1)", [now]).unwrap();
+    index
+        .update_many(snapshot(&source, &out).unwrap(), 2)
+        .unwrap();
+    assert_eq!(
+        index.chat_generation(&fork_path).unwrap(),
+        fork_generation,
+        "appending a snapshot must preserve chat cursors"
+    );
 
     // A same-length in-place edit must be noticed, not just count/length fingerprints.
     db.execute(
-        "UPDATE messages SET content='revised' WHERE role='assistant'",
+        "UPDATE messages SET content='revised' WHERE session_id='child' AND role='assistant'",
         [],
     )
     .unwrap();
@@ -97,6 +111,13 @@ fn hermes_rewrites_replay_without_stale_answers_or_invented_children() {
     assert_eq!(changed, vec![path("child")]);
     index.update_many(changed, 2).unwrap();
     assert_eq!(card(&index, "child").last_reply, "revised");
+    let revised_generation = index.chat_generation(&child_path).unwrap();
+    assert_ne!(
+        first_generation, revised_generation,
+        "same-length edit invalidates the phone cursor"
+    );
+    let (messages, _) = index.chat(&child_path, 0, None, None, 50, false).unwrap();
+    assert_eq!(messages.last().unwrap().text, "revised");
     // Rewind hides old output even when no new row or later timestamp exists.
     db.execute("UPDATE messages SET active=0 WHERE role='assistant'", [])
         .unwrap();
@@ -106,9 +127,22 @@ fn hermes_rewrites_replay_without_stale_answers_or_invented_children() {
     assert!(card(&index, "child").last_reply.is_empty());
     assert_eq!(card(&index, "child").turn, Turn::Running);
     assert!(card(&index, "main").subagents[0].running());
+    let withdrawn_generation = index.chat_generation(&child_path).unwrap();
+    assert_ne!(revised_generation, withdrawn_generation);
+    assert!(index
+        .chat(&child_path, 0, None, None, 50, false)
+        .unwrap()
+        .0
+        .iter()
+        .all(|m| m.user));
     drop(index);
     let mut index = Index::open(&root, vec![(Agent::Hermes, out.clone())]).unwrap();
     index.update_many([path("child"), path("main")], 4).unwrap();
+    assert_eq!(
+        index.chat_generation(&child_path).unwrap(),
+        withdrawn_generation,
+        "restart does not reset a valid cursor"
+    );
     assert!(
         card(&index, "child").last_reply.is_empty(),
         "restart does not resurrect withdrawn output"

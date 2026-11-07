@@ -391,6 +391,29 @@ pub(crate) fn claude_session_id(args: &[String]) -> Option<String> {
         if arg == "--" {
             break;
         }
+        // A fork receives a new id. Its resume argument names the source, not this process.
+        if arg == "--fork-session" {
+            return None;
+        }
+        if matches!(
+            arg.as_str(),
+            "--model"
+                | "--agent"
+                | "--agents"
+                | "--settings"
+                | "--setting-sources"
+                | "--append-system-prompt"
+                | "--system-prompt"
+                | "--permission-mode"
+                | "--effort"
+                | "--fallback-model"
+                | "--output-format"
+                | "--input-format"
+                | "--json-schema"
+        ) {
+            args.next();
+            continue;
+        }
         let value = match arg.as_str() {
             "--session-id" | "--resume" | "-r" => args.next().map(String::as_str),
             _ => arg
@@ -401,7 +424,7 @@ pub(crate) fn claude_session_id(args: &[String]) -> Option<String> {
             let id = uuid::Uuid::parse_str(value).ok()?.to_string();
             if found.is_some() {
                 return None;
-            } // Conflicting selectors aren't evidence.
+            }
             found = Some(id);
         }
     }

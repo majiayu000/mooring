@@ -80,7 +80,7 @@ fn a_declaration_registers_after_the_built_ins() {
         specs.iter().map(|s| s.key).collect::<Vec<_>>(),
         [
             "Codex", "Claude", "Grok", "Cursor", "Qoder", "Hermes", "Droid", "Pi", "Omp", "Dsh",
-            "aider"
+            "Kimi", "Gemini", "aider"
         ]
     );
     let aider = &specs[builtin().len()];
@@ -160,7 +160,7 @@ fn api_2_events_load_and_are_checked() {
     let d = dir("events");
     let base = |api: u32, events: &str| {
         format!(
-            r#"{{"api":{api},"id":"gemini","name":"Gemini","executable":"gemini","start":"gemini","resume":"gemini --resume {{id}}",
+            r#"{{"api":{api},"id":"fixture-agent","name":"Fixture","executable":"fixture-cli","start":"fixture-cli","resume":"fixture-cli --resume {{id}}",
             "transcripts":{{"root":"~/c","session":"/s","cwd":"/c","events":{events}}}}}"#
         )
     };

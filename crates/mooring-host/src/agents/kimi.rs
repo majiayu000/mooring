@@ -39,17 +39,27 @@ impl Adapter for Kimi {
         executable == "kimi"
     }
     fn process_session(&self, _pid: u32, args: &[String]) -> (Option<String>, bool) {
-        let session = args
-            .windows(2)
-            .find(|w| matches!(w[0].as_str(), "-S" | "--session"))
-            .map(|w| w[1].as_str())
-            .or_else(|| args.iter().find_map(|a| a.strip_prefix("--session=")));
-        (
-            session
-                .filter(|s| s.starts_with("session_"))
-                .map(str::to_owned),
-            false,
+        let id = super::session_arg(
+            args,
+            &["-S", "--session", "--session="],
+            &[
+                "-m",
+                "--model",
+                "-p",
+                "--prompt",
+                "--output-format",
+                "--skills-dir",
+                "--agent",
+                "--agent-file",
+                "--add-dir",
+            ],
         )
+        .filter(|s| {
+            s.strip_prefix("session_")
+                .is_some_and(|id| uuid::Uuid::parse_str(id).is_ok())
+        })
+        .map(str::to_owned);
+        (id, false)
     }
     fn is_transcript(&self, path: &Path) -> bool {
         location(path).is_some()

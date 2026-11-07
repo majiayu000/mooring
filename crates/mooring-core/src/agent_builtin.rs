@@ -97,4 +97,3 @@ pub(super) fn builtin() -> Vec<AgentSpec> {
         ),
     ]
 }
-

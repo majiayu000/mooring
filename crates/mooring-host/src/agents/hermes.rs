@@ -19,9 +19,20 @@ impl Adapter for Hermes {
     }
     fn process_session(&self, _: u32, args: &[String]) -> (Option<String>, bool) {
         (
-            args.windows(2)
-                .find(|a| matches!(a[0].as_str(), "--resume" | "-r"))
-                .map(|a| a[1].clone()),
+            super::session_arg(
+                args,
+                &["--resume", "--resume=", "-r"],
+                &[
+                    "-z",
+                    "-m",
+                    "--model",
+                    "--provider",
+                    "-t",
+                    "--toolsets",
+                    "--skills",
+                ],
+            )
+            .map(str::to_owned),
             false,
         )
     }
@@ -95,7 +106,7 @@ impl Adapter for Hermes {
             _ => {}
         }
         if let Some(title) = v["title"].as_str().filter(|s| !s.trim().is_empty()) {
-            p.card.title = mooring_core::content::short(title, 70);
+            p.card.name = mooring_core::content::short(title, 70);
         }
     }
 }

@@ -19,9 +19,12 @@ impl Adapter for Dsh {
     }
     fn process_session(&self, _: u32, args: &[String]) -> (Option<String>, bool) {
         (
-            args.windows(2)
-                .find(|a| matches!(a[0].as_str(), "--resume" | "--session-id"))
-                .map(|a| a[1].clone()),
+            super::session_arg(
+                args,
+                &["--resume", "--resume=", "--session-id", "--session-id="],
+                &["--profile", "--patch", "--from-default-profile", "--model"],
+            )
+            .map(str::to_owned),
             false,
         )
     }
@@ -106,7 +109,7 @@ impl Adapter for Dsh {
             }
             Some("session/title") => {
                 if let Some(title) = d["title"].as_str().filter(|s| !s.trim().is_empty()) {
-                    p.card.title = mooring_core::content::short(title, 70);
+                    p.card.name = mooring_core::content::short(title, 70);
                 }
             }
             _ => (),

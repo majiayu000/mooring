@@ -45,12 +45,39 @@ impl Adapter for Pi {
             })
     }
     fn process_session(&self, _: u32, args: &[String]) -> (Option<String>, bool) {
-        // --resume also accepts a partial id/picker search, so only bind an actual UUID.
-        let id = args
-            .windows(2)
-            .find(|a| a[0] == if self.0 { "--resume" } else { "--session" })
-            .map(|a| a[1].clone())
-            .filter(|s| uuid::Uuid::parse_str(s).is_ok());
+        // Prefix searches and file paths are not the full id in the session header.
+        let names: &[&str] = if self.0 {
+            &[
+                "--resume",
+                "--resume=",
+                "-r",
+                "--session",
+                "--session=",
+                "--restore",
+                "--restore=",
+            ]
+        } else {
+            &["--session"]
+        };
+        let id = super::session_arg(
+            args,
+            names,
+            &[
+                "--model",
+                "--provider",
+                "--api-key",
+                "--system-prompt",
+                "--append-system-prompt",
+                "--session-dir",
+                "--tools",
+                "--thinking",
+                "--extension",
+                "--skill",
+                "--theme",
+            ],
+        )
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+        .map(|id| id.to_string());
         (id, false)
     }
     fn is_transcript(&self, path: &Path) -> bool {
@@ -105,7 +132,7 @@ impl Adapter for Pi {
                 .or_else(|| v["title"].as_str())
                 .filter(|s| !s.trim().is_empty())
             {
-                p.card.title = mooring_core::content::short(title, 70);
+                p.card.name = mooring_core::content::short(title, 70);
             }
         }
         if v["type"] != "message" {

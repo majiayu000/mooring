@@ -31,6 +31,19 @@ pub(super) fn place(seq: i64) -> (i64, i64) {
 }
 
 impl Index {
+    /// Offset cursors belong to one history generation, preserved across append/restart.
+    /// Reindexing a rewritten/truncated log changes it in the same transaction as records.
+    pub fn chat_generation(&self, path: &str) -> io::Result<String> {
+        self.db
+            .query_row(
+                "SELECT generation FROM log_generations WHERE path=?1",
+                [path],
+                |r| r.get(0),
+            )
+            .optional()
+            .map(|s| s.unwrap_or_default())
+            .map_err(err)
+    }
     /// A conversation's user and Agent messages, oldest first, and whether older ones
     /// exist. See `Request::Chat`. `floor` is where the unbroken stretch up to its end begins
     /// (`read_from`): a first ask kept from a log's head would sit on the far side of what has

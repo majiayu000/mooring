@@ -114,6 +114,7 @@ impl Index {
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;
             CREATE TABLE IF NOT EXISTS log_index (id INTEGER PRIMARY KEY CHECK(id=1), event_id INTEGER NOT NULL, error TEXT);
             CREATE TABLE IF NOT EXISTS log_scan_dirs(path TEXT PRIMARY KEY,runtime TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS log_generations(path TEXT PRIMARY KEY,generation TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS log_files(path TEXT PRIMARY KEY,runtime TEXT NOT NULL,dev INTEGER NOT NULL,inode INTEGER NOT NULL,offset INTEGER NOT NULL,pending BLOB NOT NULL,discard INTEGER NOT NULL,cli_id TEXT,cwd TEXT,updated INTEGER NOT NULL);
             CREATE INDEX IF NOT EXISTS log_identity ON log_files(runtime,cli_id);
             CREATE TABLE IF NOT EXISTS log_scan_roots(runtime TEXT NOT NULL,path TEXT NOT NULL,PRIMARY KEY(runtime,path));").map_err(err)?;

@@ -142,10 +142,7 @@ impl Store {
         fs::create_dir_all(out)?;
         let name = id.bytes().map(|b| format!("{b:02x}")).collect::<String>();
         let target = out.join(format!("{name}.jsonl"));
-        if fs::read(&target).ok().as_deref() != Some(&normalized) {
-            let temp = target.with_extension("tmp");
-            fs::write(&temp, &normalized)?;
-            fs::rename(temp, &target)?;
+        if super::mirror::publish_snapshot(&target, &normalized)? {
             changed.push(target.clone());
         }
         self.seen.insert(path.clone(), (stamp, target.clone()));

@@ -32,17 +32,22 @@ impl Adapter for Gemini {
                 .is_some_and(|s| s.contains("/@google/gemini-cli/") && s.ends_with("/index.js"))
     }
     fn process_session(&self, _pid: u32, args: &[String]) -> (Option<String>, bool) {
-        let value = args
-            .windows(2)
-            .find(|w| matches!(w[0].as_str(), "-r" | "--resume"))
-            .map(|w| w[1].as_str())
-            .or_else(|| args.iter().find_map(|a| a.strip_prefix("--resume=")));
-        (
-            value
-                .and_then(|s| uuid::Uuid::parse_str(s).ok())
-                .map(|u| u.to_string()),
-            false,
+        let id = super::session_arg(
+            args,
+            &["-r", "--resume", "--resume="],
+            &[
+                "-m",
+                "--model",
+                "-p",
+                "--prompt",
+                "-i",
+                "--prompt-interactive",
+                "--output-format",
+            ],
         )
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+        .map(|id| id.to_string());
+        (id, false)
     }
     fn is_transcript(&self, path: &Path) -> bool {
         path.extension().is_some_and(|e| e == "jsonl")

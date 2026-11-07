@@ -46,10 +46,12 @@ pub(super) fn chat(socket: &Path, request: &Value) -> io::Result<Value> {
         // part way for the conversation's start, or for an empty one.
         Reply::Chat {
             messages,
+            generation,
             more,
             partial,
         } => Ok(json!(rp::Chat {
             session,
+            generation,
             messages: messages.into_iter().map(message).collect(),
             more,
             partial: partial && !more,

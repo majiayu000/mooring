@@ -127,13 +127,7 @@ pub(super) fn snapshot(path: &Path, out: &Path) -> io::Result<Vec<PathBuf>> {
             bytes.extend(serde_json::to_vec(&record)?);
             bytes.push(b'\n');
         }
-        // Latest explicit title wins after the first prompt's automatic title.
-        bytes.extend(serde_json::to_vec(&header)?);
-        bytes.push(b'\n');
-        if fs::read(&file).ok().as_deref() != Some(&bytes) {
-            let temp = file.with_extension("tmp");
-            fs::write(&temp, &bytes)?;
-            fs::rename(&temp, &file)?;
+        if super::mirror::publish_snapshot(&file, &bytes)? {
             changed.push(file);
         }
     }

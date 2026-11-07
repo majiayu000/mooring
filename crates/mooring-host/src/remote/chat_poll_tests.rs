@@ -46,6 +46,7 @@ fn polling_chat_needs_only_its_chat_reply() {
                 CONTROL,
                 &Reply::Chat {
                     messages: vec![],
+                    generation: "history-1".into(),
                     more,
                     partial,
                 },
@@ -61,6 +62,7 @@ fn polling_chat_needs_only_its_chat_reply() {
         let page: rp::Chat =
             serde_json::from_value(page.expect("the Chat reply must be sufficient")).unwrap();
         assert!(page.messages.is_empty());
+        assert_eq!(page.generation, "history-1");
         assert_eq!(page.more, more);
         assert_eq!(page.partial, partial && !more);
     }

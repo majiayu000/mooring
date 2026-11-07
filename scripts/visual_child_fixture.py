@@ -145,3 +145,32 @@ def prepare_kimi_gemini(root, home, now):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(''.join(json.dumps(r, ensure_ascii=False) + '\n' for r in records))
     return [('pkimi', 'kimi', 'Kimi', kp), ('pgemini', 'gemini', 'Gemini', gp)]
+
+
+def prepare_names(root, home, now):
+    """Same parsed records in both builds: CLI names must win over the first prompt."""
+    cwd = str(root / 'projects/工作空间')
+    sources = []
+    for runtime, executable, location in [
+        ('Hermes', 'hermes', f'.local/share/mooring/sources/Hermes/{PARENT}.jsonl'),
+        ('Dsh', 'dsh', f'.local/share/mooring/sources/Dsh/{PARENT}.jsonl'),
+        ('Pi', 'pi', '.pi/agent/sessions/fixture/main.jsonl'),
+        ('Omp', 'omp', '.omp/agent/sessions/fixture/main.jsonl'),
+    ]:
+        prompt, name = f'原始请求 {runtime}', f'已重命名 {runtime}'
+        if runtime == 'Hermes':
+            records = [{'type': 'session', 'session_id': PARENT, 'cwd': cwd, 'source': 'cli'},
+                       {'role': 'user', 'content': prompt}, {'type': 'session', 'title': name}]
+        elif runtime == 'Dsh':
+            records = [{'type': 'session', 'id': PARENT, 'cwd': cwd},
+                       {'type': 'user/message', 'data': {'source': {'kind': 'user'}, 'content': prompt}},
+                       {'type': 'session/title', 'data': {'title': name}}]
+        else:
+            records = [{'type': 'session', 'id': PARENT, 'cwd': cwd},
+                       {'type': 'message', 'id': 'ask', 'message': {'role': 'user', 'content': prompt}},
+                       {'type': 'session_info', 'name': name}]
+        path = home / location
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(''.join(json.dumps(dict(timestamp=now, **r), ensure_ascii=False) + '\n' for r in records))
+        sources.append((f'p{runtime.lower()}', executable, runtime, path))
+    return sources

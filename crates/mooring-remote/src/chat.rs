@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Chat {
     pub session: String,
+    /// Changes when indexed history is replaced, invalidating all message cursors.
+    pub generation: String,
     /// Oldest first.
     pub messages: Vec<Message>,
     /// Older messages exist before the first: ask again with `before`.

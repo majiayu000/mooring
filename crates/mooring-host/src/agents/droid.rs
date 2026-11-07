@@ -19,9 +19,8 @@ impl Adapter for Droid {
     }
     fn process_session(&self, _: u32, args: &[String]) -> (Option<String>, bool) {
         (
-            args.windows(2)
-                .find(|a| a[0] == "--resume")
-                .map(|a| a[1].clone()),
+            super::session_arg(args, &["--resume", "--resume="], &["-m", "--model"])
+                .map(str::to_owned),
             false,
         )
     }
