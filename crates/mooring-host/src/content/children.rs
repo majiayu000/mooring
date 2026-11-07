@@ -12,6 +12,33 @@ pub struct Children {
 /// A subagent whose log has not moved for this long no longer counts as running: its
 /// process may have died mid-turn.
 pub(super) const CHILD_FRESH: u64 = 900;
+/// `Content::signal` of a dialog projected from a subagent's log.
+pub const CHILD_SIGNAL: &str = "子 Agent";
+impl Parser {
+    /// The dialog on this card is a subagent's, not this session's own.
+    pub fn waits_on_child(&self) -> bool {
+        self.card.turn == Turn::Waiting && self.child_wait_from.is_some()
+    }
+    /// A poll's fresh view of the subagents, before `official`: nothing else notices one
+    /// going silent, since `children` otherwise runs only when a log grows.
+    pub fn recheck_children(
+        &mut self,
+        kids: &Children,
+        status: Option<&Official>,
+        at: u64,
+        source: Source,
+    ) {
+        // Back to a Running the CLI says is over would be a turn nothing ends: let its Idle
+        // settle the dialog instead, as it does any other.
+        if kids.waiting.is_none()
+            && self.child_wait_from == Some(Turn::Running)
+            && matches!(status, Some(Official::Idle))
+        {
+            self.child_wait_from = None;
+        }
+        self.children(kids, at, source);
+    }
+}
 pub fn link_child(db: &Connection, path: &str, card: &Content) -> io::Result<()> {
     db.prepare_cached("INSERT INTO subagent_links VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(path) DO UPDATE SET parent=excluded.parent,name=excluded.name,turn=excluded.turn,waiting=excluded.waiting,updated=excluded.updated")
         .map_err(db_err)?

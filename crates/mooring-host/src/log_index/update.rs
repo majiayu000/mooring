@@ -9,19 +9,55 @@ impl Index {
         facts: &mooring_core::protocol::HookFacts,
     ) -> io::Result<()> {
         self.amend(path, |parser, at, source| {
-            parser.hook(event, facts, at, source)
+            parser.hook(event, facts, at, source);
+            Ok(())
         })
     }
-    pub fn official(&self, path: &str, status: &crate::content::Official) -> io::Result<()> {
+    /// One poll of a waiting session. `status` is the CLI's answer, if it gave one; either
+    /// way a subagent's dialog ends here once `children` no longer reports it. Returns
+    /// whether the card may have changed.
+    pub fn official(
+        &self,
+        runtime: Agent,
+        cli_id: &str,
+        path: &str,
+        status: Option<&crate::content::Official>,
+    ) -> io::Result<bool> {
+        if status.is_none() && !self.waits_on_child(path)? {
+            return Ok(false);
+        }
         self.amend(path, |parser, at, source| {
-            parser.official(status, at, source)
+            if parser.waits_on_child() {
+                let started = parser.card.turn_started;
+                let kids = crate::content::children(&self.db, runtime, cli_id, at, started)?;
+                parser.recheck_children(&kids, status, at, source.clone());
+            }
+            if let Some(status) = status {
+                parser.official(status, at, source);
+            }
+            Ok(())
+        })?;
+        Ok(true)
+    }
+    fn waits_on_child(&self, path: &str) -> io::Result<bool> {
+        let held = self
+            .gate
+            .lock()
+            .map_err(|_| io::Error::other("log cursor lock poisoned"))?;
+        Ok(match held.entries.get(path) {
+            Some(e) => e.parser.waits_on_child(),
+            None => crate::content::load(&self.db, path)?.waits_on_child(),
         })
     }
     /// Applies a live signal that has no transcript offset; its source is the arrival time.
     fn amend(
         &self,
         path: &str,
-        apply: impl FnOnce(&mut crate::content::Parser, u64, mooring_core::content::Source),
+        apply: impl FnOnce(
+            &mut crate::content::Parser,
+            u64,
+            mooring_core::content::Source,
+        ) -> io::Result<()>,
     ) -> io::Result<()> {
         let mut held = self
             .gate
@@ -37,7 +73,7 @@ impl Index {
         };
         // A log being read: its entry takes the signal and is written with its cursor.
         if let Some(e) = held.entries.get_mut(path) {
-            apply(&mut e.parser, mooring_core::content::now(), source);
+            apply(&mut e.parser, mooring_core::content::now(), source)?;
             let tx = self.db.unchecked_transaction().map_err(err)?;
             let written = write_cursor(&tx, path, e.runtime, &e.cursor)
                 .and_then(|()| crate::content::save(&tx, path, &e.parser))
@@ -51,7 +87,7 @@ impl Index {
             return written;
         }
         let mut parser = crate::content::load(&self.db, path)?;
-        apply(&mut parser, mooring_core::content::now(), source);
+        apply(&mut parser, mooring_core::content::now(), source)?;
         let tx = self.db.unchecked_transaction().map_err(err)?;
         crate::content::save(&tx, path, &parser)?;
         tx.commit().map_err(err)?;

@@ -555,3 +555,110 @@ fn unbound_daemon_codex_shows_title_state_and_no_daemon_shows_nothing() {
     }
     assert!(!recognition(&h).terminal_hints.contains_key("plain"));
 }
+
+/// Neither log moves and nothing draws: only the host's own timer can end this dialog.
+#[test]
+fn a_subagent_dialog_ends_by_itself_once_the_subagent_has_gone_silent() {
+    let h = Host::start();
+    h.setup();
+    let _methods = fake_codex_control(
+        &h.root.join("codex-control.sock"),
+        serde_json::json!({"type": "idle"}),
+    );
+    silent_subagent_releases_parent(&h);
+}
+/// The same with no daemon to ask (`--no-daemon`, or it stopped).
+#[test]
+fn a_subagent_dialog_ends_by_itself_without_an_official_answer() {
+    let h = Host::start();
+    h.setup();
+    silent_subagent_releases_parent(&h);
+}
+fn silent_subagent_releases_parent(h: &Host) {
+    use std::io::Write;
+    let [a] = ids();
+    daemon_codex(
+        h,
+        "p0",
+        "proj",
+        &[step("派一个子 Agent 跑测试", &a, None)],
+        "",
+    );
+    wait_for(h, "the thread binds to its pane", |w| {
+        current_is(w, "p0", &a)
+    });
+    let logs = h.root.join("logs/codex");
+    let row = |at: u64, ty: &str, payload: serde_json::Value| {
+        format!(
+            "{}\n",
+            serde_json::json!({"timestamp": at, "type": ty, "payload": payload})
+        )
+    };
+    let now = mooring_core::content::now();
+    fs::OpenOptions::new()
+        .append(true)
+        .open(logs.join(format!("{a}.jsonl")))
+        .unwrap()
+        .write_all(
+            row(
+                now,
+                "event_msg",
+                serde_json::json!({"type": "task_complete"}),
+            )
+            .as_bytes(),
+        )
+        .unwrap();
+    wait_for(h, "the parent's turn ends", |w| {
+        let s = w.current_agent("p0");
+        s.and_then(|s| w.content.get(&s.id))
+            .is_some_and(|c| c.turn == mooring_core::content::Turn::Completed)
+    });
+    // The child wrote its last line just under 15 minutes ago: it goes stale during the test,
+    // after the checks that follow a screen change or a binding (about 5 s) are over.
+    let last = now - (900 - 20);
+    let kid = uuid::Uuid::new_v4().to_string();
+    let header = serde_json::json!({"type": "session_meta", "payload": {"id": kid, "cwd": "/tmp",
+        "source": {"subagent": {"thread_spawn": {"parent_thread_id": a, "depth": 1, "agent_path": "/root/test"}}},
+        "agent_nickname": "Hypatia", "parent_thread_id": a}});
+    let lines = format!("{header}\n")
+        + &row(
+            last,
+            "event_msg",
+            serde_json::json!({"type": "task_started", "turn_id": "k1"}),
+        )
+        + &row(
+            last,
+            "response_item",
+            serde_json::json!({"type": "function_call", "name": "exec_command",
+            "call_id": "c1", "arguments": serde_json::json!({"cmd": "npm test"}).to_string()}),
+        )
+        + &row(
+            last,
+            "response_item",
+            serde_json::json!({"type": "function_call_output", "call_id": "c1",
+            "output": "Process exited with code 1: requires approval"}),
+        );
+    fs::write(logs.join(format!("{kid}.jsonl")), lines).unwrap();
+    let turn = |w: &Workspace| {
+        w.current_agent("p0")
+            .and_then(|s| w.content.get(&s.id))
+            .map(|c| c.turn)
+    };
+    wait_for(h, "the subagent's dialog is the parent's", |w| {
+        turn(w) == Some(mooring_core::content::Turn::Waiting)
+    });
+    let until = Instant::now() + Duration::from_secs(60);
+    while turn(&h.workspace()) == Some(mooring_core::content::Turn::Waiting) {
+        assert!(
+            Instant::now() < until,
+            "the parent stays on a dialog nobody is asking"
+        );
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    // It stood until the child really went stale; the parent's own Idle did not end it.
+    assert!(mooring_core::content::now() >= last + 900);
+    assert_eq!(
+        turn(&h.workspace()),
+        Some(mooring_core::content::Turn::Completed)
+    );
+}

@@ -6,7 +6,8 @@ fn start_deadlines(shared: &Shared) -> io::Result<()> {
     lock(shared)?.deadlines = Some(tx);
     let weak = Arc::downgrade(shared);
     thread::spawn(move || {
-        let run = || -> io::Result<()> {
+        let mut child_dialogs_at = 0;
+        let mut run = || -> io::Result<()> {
             loop {
                 let Some(shared) = weak.upgrade() else {
                     return Ok(());
@@ -18,9 +19,21 @@ fn start_deadlines(shared: &Shared) -> io::Result<()> {
                     if next.expire_outcomes(now) {
                         host.commit(next)?;
                     }
-                    host.workspace.next_deadline(now)
+                    let outcome = host.workspace.next_deadline(now);
+                    let dialogs = host.child_dialogs();
+                    let check = if dialogs.is_empty() {
+                        None
+                    } else {
+                        if child_dialogs_at <= now {
+                            host.reconcile(&shared, dialogs);
+                            child_dialogs_at = now + CHILD_DIALOG_EVERY;
+                        }
+                        Some(child_dialogs_at)
+                    };
+                    (outcome, check.into_iter().chain(outcome).min())
                 };
                 drop(shared);
+                let (outcome, deadline) = deadline;
                 let result = match deadline {
                     Some(at) => rx.recv_timeout(std::time::Duration::from_secs(
                         at.saturating_sub(mooring_core::content::now()),
@@ -32,6 +45,9 @@ fn start_deadlines(shared: &Shared) -> io::Result<()> {
                 match result {
                     Ok(()) => (),
                     Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return Ok(()),
+                    // Woken only to look at subagents' dialogs again: the loop does that.
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+                        if outcome.is_none_or(|at| at > mooring_core::content::now()) => {}
                     Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                         let Some(shared) = weak.upgrade() else {
                             return Ok(());

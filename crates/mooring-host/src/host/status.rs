@@ -180,6 +180,9 @@ pub(super) const SCREEN_BUSY_EVERY: Duration = Duration::from_secs(1);
 pub(super) const RECONCILE_HOLD: Duration = Duration::from_secs(5);
 /// At most one `claude agents --json` per session in this window.
 pub(super) const RECONCILE_EVERY: Duration = Duration::from_secs(5);
+/// How often a subagent's dialog on a parent is looked at again. Neither log has to move for
+/// it to end (`CHILD_FRESH`), and its screen need not change, so nothing else would ask.
+pub(super) const CHILD_DIALOG_EVERY: u64 = 30;
 /// Menus the user opens appear right after a keystroke; an agent's question does not.
 pub(super) const INPUT_SETTLE: Duration = Duration::from_secs(3);
 
@@ -309,8 +312,20 @@ pub(super) fn apply_official(
         }
     }
     let mut cards = Vec::new();
-    for (session, status) in found {
-        index.official(&session.transcript, &status)?;
+    for (session, _) in due {
+        let status = found
+            .iter()
+            .find(|(s, _)| s.id == session.id)
+            .map(|(_, status)| status);
+        let polled = index.official(
+            session.runtime,
+            &session.cli_session_id,
+            &session.transcript,
+            status,
+        )?;
+        if !polled {
+            continue;
+        }
         if let Some(card) = index.card(&session.transcript)? {
             cards.push((session.id.clone(), card));
         }
