@@ -8,7 +8,7 @@ use crate::machines::{Link, Remote};
 use crate::terminal::pane::Pane;
 use crate::ui::widgets::{dot, label};
 use fibo_core::status::Status;
-use fibo_remote::protocol::{Card, Phase};
+use fibo_remote::protocol::{Card, Op, Phase, Space};
 
 impl Workbench {
     /// One connection per machine in `<config>/machines.json`; with none, nothing runs.
@@ -127,7 +127,8 @@ impl Workbench {
                                 .text_color(T::color(T::secondary()))
                                 .on_click(cx.listener(
                                     move |this, _, window, cx| {
-                                        this.open_remote_shell(index, None, window, cx)
+                                        let space = this.machine_space_of(index);
+                                        this.open_remote_shell(index, space, window, cx)
                                     },
                                 )),
                             )
@@ -259,12 +260,12 @@ impl Workbench {
 }
 
 impl Workbench {
-    /// 「＋」 on a machine's heading: a shell in a new tab there, in `cwd` or its first
-    /// space's folder, then that shell in the peek. Named, so a resend opens one.
+    /// 「＋」 on a machine's heading: a shell in a new tab there, in `space` (else where its
+    /// host puts it), then that shell in the peek. Named, so a resend opens one.
     pub(super) fn open_remote_shell(
         &mut self,
         index: usize,
-        cwd: Option<String>,
+        space: Option<Space>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -278,14 +279,7 @@ impl Workbench {
             let view = remote.view.lock().unwrap();
             (view.machine.as_ref()).map_or_else(|| view.spec.host.clone(), |m| m.name.clone())
         };
-        let op = fibo_remote::protocol::Op::Open {
-            cwd,
-            space: None,
-            agent: None,
-            prompt: None,
-            resume: None,
-            request: Some(fibo_core::protocol::RequestId::fresh().id),
-        };
+        let op = open_shell(space.as_ref(), fibo_core::protocol::RequestId::fresh().id);
         let sent = cx.background_spawn(async move {
             linked
                 .client
@@ -353,6 +347,20 @@ impl Workbench {
             });
         })
         .detach();
+    }
+}
+
+/// The `open` for a shell there. A space picked in this window is named, so one with no
+/// folder (its host cannot match it by `cwd`) still gets it; its folder goes too, for a host
+/// too old to read `space`. With none, the host picks, as before.
+fn open_shell(space: Option<&Space>, request: String) -> Op {
+    Op::Open {
+        cwd: space.map(|s| s.cwd.clone()).filter(|c| !c.is_empty()),
+        space: space.map(|s| s.id.clone()),
+        agent: None,
+        prompt: None,
+        resume: None,
+        request: Some(request),
     }
 }
 
@@ -482,7 +490,8 @@ impl Workbench {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.open_remote_shell(index, None, window, cx);
+        let space = self.machine_space_of(index);
+        self.open_remote_shell(index, space, window, cx);
     }
     /// Into the open peek: keys as you type them, or a mouse report.
     pub fn visual_in_peek(&mut self, text: &str, mouse: bool, cx: &mut Context<Self>) {
@@ -512,5 +521,40 @@ impl Workbench {
         let read_only = (peek.remote.as_ref())
             .is_some_and(|r| !r.slot.lock().unwrap().as_ref().is_some_and(|l| l.typing));
         Some((peek.pane.clone(), read_only))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn space(id: &str, cwd: &str) -> Space {
+        Space {
+            id: id.into(),
+            name: id.into(),
+            cwd: cwd.into(),
+        }
+    }
+    fn picked(op: Op) -> (Option<String>, Option<String>) {
+        match op {
+            Op::Open { cwd, space, .. } => (cwd, space),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_shell_opened_in_a_picked_space_names_that_space() {
+        // A space with no folder: only its id can put the shell there.
+        let blank = space("blank", "");
+        assert_eq!(
+            picked(open_shell(Some(&blank), "r1".into())),
+            (None, Some("blank".into()))
+        );
+        let own = space("own", "/work/own");
+        assert_eq!(
+            picked(open_shell(Some(&own), "r2".into())),
+            (Some("/work/own".into()), Some("own".into()))
+        );
+        assert_eq!(picked(open_shell(None, "r3".into())), (None, None));
     }
 }
