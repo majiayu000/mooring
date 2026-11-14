@@ -315,7 +315,7 @@ impl Workbench {
             }
             if rows == 0 {
                 out.push(
-                    self.empty_machine_space(index, space.cwd, cx)
+                    self.empty_machine_space(index, space, cx)
                         .into_any_element(),
                 );
             }
@@ -514,7 +514,7 @@ impl Workbench {
                     })),
             )
     }
-    fn empty_machine_space(&self, index: usize, cwd: String, cx: &Context<Self>) -> gpui::Div {
+    fn empty_machine_space(&self, index: usize, space: Space, cx: &Context<Self>) -> gpui::Div {
         div()
             .mx(px(F::EDGE))
             .mt(px(T::S4))
@@ -544,7 +544,7 @@ impl Workbench {
                         .hover(|s| s.border_color(T::color(F::chip_on_line())))
                         .child(t!("在这里开一个终端"))
                         .on_click(cx.listener(move |this, _, window, cx| {
-                            this.open_remote_shell(index, Some(cwd.clone()), window, cx);
+                            this.open_remote_shell(index, Some(space.clone()), window, cx);
                         })),
                 )
             })

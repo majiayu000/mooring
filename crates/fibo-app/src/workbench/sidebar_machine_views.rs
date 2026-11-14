@@ -318,7 +318,8 @@ impl Workbench {
                         .child("+")
                         .on_click(cx.listener(move |this, _, window, cx| {
                             cx.stop_propagation();
-                            this.open_remote_shell(index, None, window, cx);
+                            let space = this.machine_space_of(index);
+                            this.open_remote_shell(index, space, window, cx);
                         })),
                 )
             })
