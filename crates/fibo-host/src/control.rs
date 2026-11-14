@@ -212,6 +212,13 @@ fibo serve --runtime <目录> [--takeover] [--recent-days N]
                                              接过全部终端，--recent-days 只读最近 N 天的会话（默认 7）"),
     },
     Command {
+        name: "socket",
+        valued: &[],
+        switches: &[],
+        usage: tk!("\
+fibo socket                                打印后台的 socket 路径；另一台电脑的窗口经 ssh 连这台时用"),
+    },
+    Command {
         name: "scan",
         valued: &[],
         switches: &[],

@@ -47,6 +47,10 @@ pub(super) struct FormChecks {
 /// as a new terminal would; None when the shell is not one we can ask or it does not answer.
 fn login_commands(names: &[String]) -> Option<HashSet<String>> {
     use std::process::{Command, Stdio};
+    // This machine's shell says nothing of what another machine's has.
+    if crate::lifecycle::attached() {
+        return None;
+    }
     let shell = std::env::var("SHELL")
         .ok()
         .filter(|s| s.ends_with("/zsh") || s.ends_with("/bash"))?;

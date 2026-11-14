@@ -5,6 +5,7 @@ use crate::terminal::screen;
 use gpui::WindowHandle;
 use std::time::Duration;
 mod agent_picker_evidence;
+mod attach_evidence;
 mod blank_pane_evidence;
 mod changes_evidence;
 mod complete_evidence;
@@ -78,6 +79,7 @@ pub fn start(
         || settings_evidence::start(handle, evidence.clone(), cx)
         || phones_evidence::start(handle, evidence.clone(), cx)
         || remote_typing_evidence::start(handle, evidence.clone(), cx)
+        || attach_evidence::start(handle, evidence.clone(), cx)
         || cpu_probe_evidence::start(handle, evidence.clone(), cx)
         || pane_drag_evidence::start(handle, evidence.clone(), cx)
         || resume_evidence::start(handle, evidence.clone(), cx)

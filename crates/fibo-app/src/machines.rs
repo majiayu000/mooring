@@ -42,20 +42,35 @@ impl Spec {
         }
     }
     pub fn command(&self) -> Vec<String> {
-        let run = match &self.path {
+        self.ssh(&match &self.path {
             Some(path) => format!("exec {} remote --stdio", quote(path)),
-            // On its PATH (by the new name, then the old), else the app bundle in
-            // ~/Applications, else /Applications; Fibo.app, else one installed as Mooring.app.
+            None => format!("{}; exec \"$p\" remote --stdio", self.find_program()),
+        })
+    }
+    /// Shell that sets `$p` to `fibo` on that machine: the path written down, else on its
+    /// PATH (by the new name, then the old), else the app bundle in ~/Applications, else
+    /// /Applications; Fibo.app, else one installed as Mooring.app.
+    pub fn find_program(&self) -> String {
+        match &self.path {
+            Some(path) => format!("p={}", quote(path)),
             None => [
                 "p=$(command -v fibo || command -v mooring)",
                 "for d in \"$HOME/Applications\" /Applications; do for a in Fibo Mooring; do [ -x \"$p\" ] || p=\"$d/$a.app/Contents/MacOS/mooring\"; done; done",
-                "exec \"$p\" remote --stdio",
             ]
             .join("; "),
-        };
+        }
+    }
+    /// `ssh` to this machine running `script` there, with the options every link uses.
+    pub fn ssh(&self, script: &str) -> Vec<String> {
+        let mut argv = self.ssh_options("-T");
+        argv.extend([self.host.clone(), script.to_owned()]);
+        argv
+    }
+    /// `ssh <mode>` and the options every link to this machine uses, before the host.
+    pub fn ssh_options(&self, mode: &str) -> Vec<String> {
         [
             "ssh",
-            "-T",
+            mode,
             "-o",
             "BatchMode=yes",
             "-o",
@@ -64,8 +79,6 @@ impl Spec {
             "ServerAliveInterval=15",
             "-o",
             "ServerAliveCountMax=2",
-            &self.host,
-            &run,
         ]
         .map(str::to_owned)
         .to_vec()

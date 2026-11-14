@@ -407,8 +407,15 @@ pub(super) fn dispatch(shared: &Shared, request: Request) -> io::Result<Reply> {
             let colors = colors.unwrap_or(scheme.colors());
             geometry(cols, rows)?;
             let mut host = lock(shared)?;
+            // A folder that is gone here (another machine's window asked for it, and only
+            // this host can look) starts in its space's folder, else home, as the window
+            // does for its own host.
+            // A resend is matched by what was asked, which the folder fallback never changes.
+            let asked = cwd.clone();
+            let cwd = super::start_dir::start_dir(&host.workspace, &space, cwd);
             if let Some(existing) = host.workspace.terminals.iter().find(|s| s.id == id) {
-                if existing.argv != argv || existing.cwd != cwd || existing.space != space {
+                let same_dir = existing.cwd == asked || existing.cwd == cwd;
+                if existing.argv != argv || !same_dir || existing.space != space {
                     return Err(io::Error::other(
                         "launch ID was already used with different arguments",
                     ));

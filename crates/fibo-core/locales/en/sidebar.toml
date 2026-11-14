@@ -48,6 +48,12 @@
 "{name}，点一下展开" = "{name}, click to expand"
 "在 {name} 上开一个新终端" = "Open a new terminal on {name}"
 "本机" = "This Mac"
+"在新窗口打开" = "Open in New Window"
+"滚动内容存在这台电脑上，那台电脑上的编辑器打不开" = "The scrollback is saved on this computer; an editor on the attached machine can't open it"
+"{agent} 只装在 {host} 上，这里还接不上那段对话；请在那台的窗口里接着" = "{agent} is installed only on {host}; its conversation can't be resumed from here yet, so continue it in that machine's window"
+"这个文件在 {host} 上，这里打不开" = "This file is on {host} and can't be opened here"
+"{host} 上的目录不能在访达里选：在空间的目录列表里选，或在终端里 cd 过去" = "Folders on {host} can't be picked in Finder: choose one from the space's folder list, or cd there in a terminal"
+"没能打开 {host} 的窗口：{e}" = "Couldn't open a window for {host}: {e}"
 "{len} 个会话 · {limit}" = "{len} {len|session|sessions} · {limit}"
 "{len} 个会话" = "{len} {len|session|sessions}"
 "连接中…" = "Connecting…"
@@ -58,6 +64,7 @@
 "添加一台电脑" = "Add a computer"
 "{machine} · {len} 个会话" = "{machine} · {len} {len|session|sessions}"
 "本机 · {len} 个空间 · {sessions} 个会话" = "{len} {len|space|spaces} · {sessions} {sessions|session|sessions}"
+"{machine} · {len} 个空间 · {sessions} 个会话" = "{machine} · {len} {len|space|spaces} · {sessions} {sessions|session|sessions}"
 
 [machines]
 "旧版，只能看" = "Old version, view only"

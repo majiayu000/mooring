@@ -92,7 +92,7 @@ impl Workbench {
             )
         };
         let argv = launch_argv(
-            fibo_platform::shell::interactive(),
+            crate::lifecycle::shell(),
             resume.as_ref().map(|r| r.0.as_str()),
         );
         // A new tab may move to the space of the project it opens in; a split or a
@@ -174,7 +174,7 @@ impl Workbench {
             .filter(|t| t.space == space.id);
         // The space's own folder, else where its terminals last were, else the folder
         // worked in last anywhere (core decides).
-        let home = fibo_platform::dirs::home_str();
+        let home = crate::lifecycle::home_str();
         let space_dir = self.workspace.space_start(&space.id, home.as_deref());
         let cwd = resume
             .map(|r| r.1)

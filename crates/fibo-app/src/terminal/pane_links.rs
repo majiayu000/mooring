@@ -42,7 +42,10 @@ impl Pane {
                 .into_iter()
                 .find_map(|(word, whole)| {
                     let word = word?;
-                    let path = screen::resolve_path(word, cwd).filter(|p| p.exists())?;
+                    // An attached host's paths are on its machine: one here by the same name
+                    // is another file, so nothing opens from there.
+                    let path = screen::resolve_path(word, cwd)
+                        .filter(|p| !crate::lifecycle::attached() && p.exists())?;
                     Some(Hovered {
                         path,
                         at: screen::split_position(word).1,
@@ -110,6 +113,13 @@ impl Pane {
     /// Opens `target` by the rules in `open_path`; `reveal` only shows it in Finder.
     pub fn open_target(&mut self, target: &Hovered, reveal: bool, cx: &mut Context<Self>) {
         use super::super::open_path::Plan;
+        // Every way to open a path comes here: an attached host's file is on its machine,
+        // and one here by the same path is another file.
+        if crate::lifecycle::attached() {
+            let host = crate::lifecycle::here();
+            self.show_toast(t!("这个文件在 {host} 上，这里打不开", host), cx);
+            return;
+        }
         match Self::open_plan(target, reveal) {
             Plan::Reveal { executable } => {
                 cx.reveal_path(&target.path);

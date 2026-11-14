@@ -13,6 +13,10 @@ use fibo_remote::protocol::{Card, Phase};
 impl Workbench {
     /// One connection per machine in `<config>/machines.json`; with none, nothing runs.
     pub(super) fn start_machines(cx: &mut Context<Self>) -> Vec<Remote> {
+        // An attached window is that machine's own: no other machines beside it.
+        if crate::lifecycle::attached() {
+            return Vec::new();
+        }
         let specs = match crate::machines::load() {
             Ok(specs) => specs,
             Err(e) => {

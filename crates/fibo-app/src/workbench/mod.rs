@@ -76,6 +76,13 @@ struct PaneMenu {
 /// The first of `candidates` that still exists, else the home directory: a directory
 /// removed since (a deleted worktree) must not stop a new terminal.
 pub(super) fn usable_cwd(candidates: impl IntoIterator<Item = String>) -> String {
+    // An attached host's folders are on its machine: that host checks them, not this one.
+    if crate::lifecycle::attached() {
+        let mut candidates = candidates.into_iter();
+        return (candidates.find(|d| d.starts_with('/')))
+            .or_else(crate::lifecycle::home_str)
+            .unwrap_or_else(|| "/".into());
+    }
     candidates
         .into_iter()
         .find(|d| Path::new(d).is_dir())
@@ -85,7 +92,7 @@ pub(super) fn usable_cwd(candidates: impl IntoIterator<Item = String>) -> String
 /// A space whose folder was set but is gone. A space with no folder set is not missing:
 /// its terminals start in `$HOME` until one is chosen.
 pub(super) fn space_dir_missing(space: &Space) -> bool {
-    !space.cwd.is_empty() && !Path::new(&space.cwd).is_dir()
+    !space.cwd.is_empty() && !crate::lifecycle::attached() && !Path::new(&space.cwd).is_dir()
 }
 /// The space's folder as shown: its own as `~/…`; for one with none, `start` (where it
 /// will start: its last folder or the one worked in last anywhere), else home.
@@ -176,7 +183,7 @@ fn id() -> String {
     )
 }
 fn home_relative(path: &str) -> String {
-    match fibo_platform::dirs::home_str() {
+    match crate::lifecycle::home_str() {
         Some(home) if !home.is_empty() && path.starts_with(&home) => {
             format!("~{}", &path[home.len()..])
         }
@@ -287,6 +294,8 @@ use tasks::TaskUi;
 mod tests;
 #[cfg(feature = "visual-test")]
 mod visual;
+#[cfg(feature = "visual-test")]
+mod visual_attach;
 #[cfg(feature = "visual-test")]
 mod visual_unknown;
 

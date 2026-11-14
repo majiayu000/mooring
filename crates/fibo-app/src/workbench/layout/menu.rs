@@ -301,6 +301,7 @@ impl Workbench {
                             .is_none()
                             .then_some(t!("这个终端里没有识别到 Agent")),
                         super::super::pane_menu::INTERRUPT_TURN => self.interrupt_blocked(session),
+                        tk!("在编辑器里看滚动内容") => super::scrollback_blocked(),
                         tk!("取消关联") => match session {
                             None => Some(t!("这个终端里没有识别到 Agent")),
                             Some(s) if s.task.is_none() => Some(t!("这个会话没有挂到待办")),

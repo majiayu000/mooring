@@ -49,6 +49,12 @@ impl TaskUi {
 impl Workbench {
     /// What an Agent is handed for `task`, with this app's own `fibo` to write back with.
     pub(super) fn task_handoff(&self, task: &Task) -> String {
+        // An attached host's Agent runs there: its own `fibo`, which its terminals already
+        // point at their host (MOORING_RUNTIME).
+        if let Some(program) = crate::attach::program() {
+            let note = format!("{} todo note", shell_quote(&program));
+            return self.workspace.task_handoff(task, &note);
+        }
         let binary = std::env::current_exe().map(|exe| exe.with_file_name("fibo"));
         let runtime = self.store.socket().parent().map(Path::to_path_buf);
         let note = match (&binary, &runtime) {

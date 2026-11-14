@@ -197,7 +197,8 @@ impl Store {
             // A shell that ended or moved somewhere unreadable keeps the recorded directory.
             if let Some(id) = cwd_source
                 && let Ok(Reply::Cwd(current)) = rpc(&socket, &Request::TerminalCwd { id })
-                && Path::new(&current).is_dir()
+                // An attached host's folders are on its machine, and it just read this one.
+                && (crate::lifecycle::attached() || Path::new(&current).is_dir())
                 && let Request::Launch { cwd, .. } = &mut request
             {
                 *cwd = current;

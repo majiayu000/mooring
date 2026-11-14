@@ -33,7 +33,11 @@ impl Workbench {
         // is the title row's 要你处理 alone; a click here still lists what works or waits.
         let listed = self.facts().listed;
         let host = item("status-host", open == Some(StatusPop::Sessions))
-            .aria_label(t!("本机，{listed} 个会话", listed))
+            .aria_label(t!(
+                "{name}，{listed} 个会话",
+                name = crate::lifecycle::here(),
+                listed
+            ))
             .on_click(cx.listener(|this, _, _, cx| this.toggle_status(StatusPop::Sessions, cx)))
             .child(div().size(px(T::DOT)).rounded_full().bg(if cut {
                 Tone::Danger.dot()
@@ -52,9 +56,13 @@ impl Workbench {
                         .child(if cut {
                             t!("后台断开，正在重连").to_owned()
                         } else if fit.working {
-                            t!("本机 · {listed} 个会话", listed)
+                            t!(
+                                "{name} · {listed} 个会话",
+                                name = crate::lifecycle::here(),
+                                listed
+                            )
                         } else {
-                            t!("本机").to_owned()
+                            crate::lifecycle::here()
                         }),
                 )
             })

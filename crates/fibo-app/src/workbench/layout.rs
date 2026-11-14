@@ -288,6 +288,12 @@ impl Workbench {
     /// directory and opened with `$EDITOR` in a new tab. The host reads it,
     /// so a pane's own screen is never locked for it; one file per terminal, replaced.
     fn scrollback_in_editor(&mut self, id: &str, cx: &mut Context<Self>) {
+        // The capture is written here, and the editor would open in a terminal there.
+        if let Some(why) = scrollback_blocked() {
+            self.error = Some(why.to_owned());
+            cx.notify();
+            return;
+        }
         let socket = self.store.socket().to_owned();
         let terminal = id.to_owned();
         let cwd = self
@@ -500,6 +506,11 @@ fn menu_rule(i: usize) -> gpui::AnyElement {
 }
 /// The chord that runs a menu item without the menu, as the user has it bound; copy
 /// and paste are the terminal's own fixed ⌘C and ⌘V.
+/// Why 在编辑器里看滚动内容 is off: an attached machine's terminal opens the editor there,
+/// where the file written here is not.
+pub(super) fn scrollback_blocked() -> Option<&'static str> {
+    crate::lifecycle::attached().then(|| t!("滚动内容存在这台电脑上，那台电脑上的编辑器打不开"))
+}
 fn menu_shortcut(title: &str, keys: &crate::keymap::Keymap) -> Option<String> {
     use crate::keymap::Action;
     let action = match title {

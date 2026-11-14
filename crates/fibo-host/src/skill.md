@@ -65,6 +65,7 @@ Fibo 以前叫 Mooring：旧的 `mooring` 命令还能用。新写的命令一�
 | `fibo remote --stdio` / `--relay <地址> [--relay-key <密钥>] [--report]` / `--pair [--name 名字] [--role view\|answer\|full] [--new-code]` / `--enable` / `--disable` / `--status` / `--devices` / `--device <设备> --role <权限>` / `--kick <设备>` / `--revoke <设备>` / `--machine-name <名字>` | 手机和别的机器连过来。配对、改权限、断开、取消配对、给电脑改名都是用户的决定，别自己做；细节看 `fibo remote --help` |
 | `fibo serve --runtime <目录> [--takeover] [--recent-days N]` | 后台本身，App 会自己启动。**不要自己跑** |
 | `fibo scan --runtime <目录>` | 让后台重新扫一遍 Agent 会话 |
+| `fibo socket` | 打印后台的 socket 路径；别的电脑的窗口经 ssh 连这台时用，不用手动跑 |
 | `fibo --version` | 协议版本 |
 
 状态（`phase`）：`working` 在干活，`waiting` 在等用户回答（审批或选择题），`idle` 这一轮做完了，`-` 不是可识别的 Agent 对话（shell 或别的程序）。

@@ -40,6 +40,9 @@ impl Workbench {
                 self.focus_terminal(&lost, window, cx);
                 return;
             }
+            if self.resume_unknown_here(session, cx) {
+                return;
+            }
             if let Some(space) = self.workspace.session_space(session) {
                 self.nav.space = space.into();
             }
@@ -100,13 +103,32 @@ impl Workbench {
         self.sync_panes(cx);
         true
     }
+    /// An attached machine's session whose Agent only that machine has installed: its
+    /// resume command is in that machine's plugin, not here, and guessing would start a new
+    /// conversation instead. Says so, and true when nothing should launch.
+    fn resume_unknown_here(&mut self, session: &AgentSession, cx: &mut Context<Self>) -> bool {
+        if !crate::lifecycle::attached() || session.runtime.spec().is_some() {
+            return false;
+        }
+        self.error = Some(t!(
+            "{agent} 只装在 {host} 上，这里还接不上那段对话；请在那台的窗口里接着",
+            agent = session.runtime.name(),
+            host = crate::lifecycle::here()
+        ));
+        cx.notify();
+        true
+    }
     /// Reopens a lost terminal in place, resuming the conversation it was running, even one
     /// you closed: this is you asking (the pane's button, its row), or a still open one.
     pub(super) fn reopen(&mut self, id: String, cx: &mut Context<Self>) {
         if self.drop_pane_running_elsewhere(&id, cx) {
             return;
         }
-        if let Some(s) = interrupted_session(&self.workspace, &id) {
+        if let Some(s) = interrupted_session(&self.workspace, &id).cloned() {
+            if self.resume_unknown_here(&s, cx) {
+                return;
+            }
+            let s = &s;
             self.resuming.resume = Some((
                 self.workspace.resume_command(s),
                 s.cwd.clone(),
