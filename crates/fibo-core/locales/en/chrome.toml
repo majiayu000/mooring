@@ -197,9 +197,9 @@
 "标签名" = "Tab name"
 
 [statusbar]
-"本机，{listed} 个会话" = "This Mac, {listed} {listed|session|sessions}"
+"{name}，{listed} 个会话" = "{name}, {listed} {listed|session|sessions}"
 "后台断开，正在重连" = "Host lost, reconnecting"
-"本机 · {listed} 个会话" = "This Mac · {listed}"
+"{name} · {listed} 个会话" = "{name} · {listed}"
 "和后台 Fibo 的连接断了，侧栏和看板停在断开那一刻" = "Lost the connection to the Fibo host; the sidebar and Board show the moment it dropped"
 "后台 Fibo 在运行，按事件更新，不定时轮询" = "The Fibo host is running; updates come from events, not polling"
 "内存{label}" = "Memory {label}"

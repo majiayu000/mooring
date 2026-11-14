@@ -29,6 +29,7 @@ mod report_back;
 mod runtime;
 mod screen_match;
 mod shell_watch;
+mod start_dir;
 mod status;
 mod wait_log;
 use association::*;

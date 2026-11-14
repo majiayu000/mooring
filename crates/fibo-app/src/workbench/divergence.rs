@@ -116,7 +116,8 @@ impl Workbench {
     /// The last counts for `dir`; looks at its refs at most once a second while drawn, and
     /// counts again in the background only after one of them changed.
     pub(super) fn git_divergence(&self, dir: &str, cx: &Context<Self>) -> Option<Divergence> {
-        if dir.is_empty() {
+        // Counted from the repository on this machine; an attached one's is on its own.
+        if dir.is_empty() || crate::lifecycle::attached() {
             return None;
         }
         let mut cache = CACHE.lock().ok()?;

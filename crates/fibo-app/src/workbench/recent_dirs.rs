@@ -23,7 +23,7 @@ impl Workbench {
         {
             return Rc::clone(dirs);
         }
-        let home = fibo_platform::dirs::home_str();
+        let home = crate::lifecycle::home_str();
         let dirs = Rc::new(self.workspace.offered_dirs(home.as_deref(), SHOWN + 1));
         *cache = Some((key, Rc::clone(&dirs)));
         dirs

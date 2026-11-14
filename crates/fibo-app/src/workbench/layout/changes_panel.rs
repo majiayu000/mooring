@@ -477,7 +477,8 @@ impl ChangesPanel {
             ),
         };
         row.child(div().flex_1())
-            .when(summary.is_some(), |d| {
+            // Files on an attached machine do not open here (`Pane::open_target`).
+            .when(summary.is_some() && !crate::lifecycle::attached(), |d| {
                 d.child(
                     button("changes-open-file", t!("打开文件"))
                         .flex_shrink_0()

@@ -65,6 +65,7 @@ Rarely needed unless the user asks for them explicitly:
 | `fibo remote --stdio` / `--relay <url> [--relay-key <key>] [--report]` / `--pair [--name name] [--role view\|answer\|full] [--new-code]` / `--enable` / `--disable` / `--status` / `--devices` / `--device <device> --role <role>` / `--kick <device>` / `--revoke <device>` / `--machine-name <name>` | Connect phones or remote machines. Pairing, role changes, kicking, revoking, and renaming are user decisions — never run them unprompted; see `fibo remote --help` |
 | `fibo serve --runtime <dir> [--takeover] [--recent-days N]` | Host daemon started automatically by the app. **Never run it yourself** |
 | `fibo scan --runtime <dir>` | Ask the daemon to rescan agent sessions |
+| `fibo socket` | Print the daemon's socket path; another machine's window uses it over ssh, no need to run it by hand |
 | `fibo --version` | Print protocol version |
 
 Phases (`phase`): `working` (running a turn), `waiting` (waiting on user approval or question), `idle` (turn finished), `-` (plain shell or non-agent process).

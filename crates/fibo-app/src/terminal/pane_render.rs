@@ -147,8 +147,8 @@ impl Render for Pane {
                     // slides up so the prompt at its bottom stays in view.
                     let bounds = match (pane.peek, pane.metrics) {
                         (true, Some(m)) => {
-                            let tall = m.height * pane.screen.rows.len() as f32;
-                            let over = (tall - bounds.size.height).max(px(0.));
+                            let rows = pane.screen.rows.len();
+                            let over = overlays::peek_lift(rows, m.height, bounds.size.height);
                             Bounds::new(bounds.origin - gpui::point(px(0.), over), bounds.size)
                         }
                         _ => bounds,

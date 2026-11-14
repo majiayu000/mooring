@@ -341,7 +341,7 @@ impl Workbench {
             Heading {
                 key: "machine:local".into(),
                 mark: None,
-                name: t!("本机").into(),
+                name: crate::lifecycle::here(),
                 note: local_note(
                     sessions,
                     open,
@@ -484,7 +484,8 @@ impl Workbench {
         let view = index.and_then(|i| Some(self.machines.get(i)?.view.lock().unwrap().clone()));
         let online = view.as_ref().is_none_or(|v| v.link == Link::Online);
         let host = view.as_ref().map(|v| v.spec.host.clone());
-        let name = host.as_deref().map_or(t!("本机"), machine_label).to_owned();
+        let name =
+            (host.as_deref()).map_or_else(crate::lifecycle::here, |h| machine_label(h).to_owned());
         // While the mark slides to it the mark says so.
         let on = self.machine_scope() == index;
         let lit = on && self.sidebar.motion.rail_at().is_none();
@@ -706,7 +707,7 @@ impl Workbench {
                     (t!("{name} · 断开", name), false)
                 })
             })
-            .unwrap_or_else(|| (t!("本机").to_owned(), true))
+            .unwrap_or_else(|| (crate::lifecycle::here(), true))
     }
     /// The foot's first words.
     pub(super) fn column_foot(&self, sessions: usize) -> String {
@@ -718,6 +719,12 @@ impl Workbench {
                 "{machine} · {len} 个会话",
                 machine = self.column_machine().0,
                 len = self.remote_rows_of(i).len()
+            ),
+            None if crate::lifecycle::attached() => t!(
+                "{machine} · {len} 个空间 · {sessions} 个会话",
+                machine = crate::lifecycle::here(),
+                len = self.workspace.spaces.len(),
+                sessions
             ),
             None => t!(
                 "本机 · {len} 个空间 · {sessions} 个会话",

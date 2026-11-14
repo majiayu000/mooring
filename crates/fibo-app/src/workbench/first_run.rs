@@ -135,12 +135,6 @@ impl Workbench {
             .find(|s| s.id == self.nav.space);
         let place = space.map_or_else(|| "~".to_owned(), |s| self.space_label(s));
         let agents = self.first_run_agents(cx);
-        let link = |id: &'static str, text: &'static str| {
-            button(id, text)
-                .border_0()
-                .px(px(T::S4))
-                .text_color(T::color(T::link()))
-        };
         div()
             .id("first-run")
             .size_full()
@@ -175,21 +169,15 @@ impl Workbench {
                     .child(agents)
                     .children(self.first_run_hooks_view(cx))
                     .child(
-                        div()
-                            .pt(px(T::S8))
-                            .flex()
-                            .items_center()
-                            .gap(px(T::S4))
-                            .text_size(px(T::SMALL))
-                            .child(link("first-run-shell", t!("打开空终端")).on_click(
-                                cx.listener(|this, _, _, cx| this.launch(false, None, cx)),
-                            ))
-                            .child(label("·"))
-                            .child(
-                                link("first-run-close", t!("不再显示")).on_click(
+                        div().pt(px(T::S8)).flex().child(
+                            button("first-run-close", t!("不再显示"))
+                                .border_0()
+                                .px(px(T::S4))
+                                .text_color(T::color(T::link()))
+                                .on_click(
                                     cx.listener(|this, _, _, cx| this.finish_first_run(cx)),
                                 ),
-                            ),
+                        ),
                     ),
             )
     }
@@ -220,30 +208,37 @@ impl Workbench {
                 .on_click(cx.listener(move |this, _, _, cx| this.first_run_start(first, cx))),
             );
         }
-        let others: Vec<_> = start
+        let link = |id: String, text: String, mark| {
+            super::render::marked_button(id, text, mark)
+                .px(px(T::S4))
+                .text_color(T::color(T::link()))
+        };
+        let mut others: Vec<_> = start
             .map(|agent| {
-                super::render::marked_button(
+                link(
                     id(agent),
                     agent.name().to_owned(),
                     Some(mark(agent, T::color(T::link()))),
                 )
-                .px(px(T::S4))
-                .text_color(T::color(T::link()))
                 .on_click(cx.listener(move |this, _, _, cx| this.first_run_start(agent, cx)))
             })
             .collect();
-        if !others.is_empty() {
-            column = column.child(
-                div()
-                    .w_full()
-                    .flex()
-                    .flex_wrap()
-                    .items_center()
-                    .gap_x(px(T::S12))
-                    .gap_y(px(T::S4))
-                    .children(others),
-            );
-        }
+        // A bare shell sits with the Agents, as on an empty tab: down by 「不再显示」 it
+        // read as part of closing the page and was hard to find.
+        others.push(
+            link("first-run-shell".into(), t!("空终端").into(), None)
+                .on_click(cx.listener(|this, _, _, cx| this.launch(false, None, cx))),
+        );
+        column = column.child(
+            div()
+                .w_full()
+                .flex()
+                .flex_wrap()
+                .items_center()
+                .gap_x(px(T::S12))
+                .gap_y(px(T::S4))
+                .children(others),
+        );
         for agent in offer.missing {
             column = column.child(label(t!(
                 "没在登录 shell 的 PATH 里找到 {executable}。安装：{hint}",

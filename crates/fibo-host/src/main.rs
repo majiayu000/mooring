@@ -121,6 +121,12 @@ fn run() -> std::io::Result<()> {
             )
         }
         "scan" => scan(args),
+        // Where another machine's window forwards to: this host's socket, as every
+        // command finds it (`--runtime`, MOORING_RUNTIME, else the app's own runtime).
+        "socket" => {
+            println!("{}", control::Args::parse(args, cmd)?.socket.display());
+            Ok(())
+        }
         name if control::DRIVES.contains(&name) => control::run(cmd, args),
         "remote" => remote::run(args),
         "hook" => hook(args),

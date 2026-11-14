@@ -6,6 +6,7 @@
 extern crate fibo_core;
 
 mod agent_hooks;
+mod attach;
 mod connection;
 mod desktop;
 #[cfg(feature = "visual-test")]
@@ -154,6 +155,10 @@ fn load_workspace(root: &Path) -> io::Result<Workspace> {
 /// The desktop starts apps somewhere nobody means to open a terminal: use the home directory
 /// then, and the launch directory otherwise (`run.sh`, a shell).
 fn default_space_dir() -> io::Result<PathBuf> {
+    // The first space of an attached host starts in that machine's home.
+    if let Some(home) = attach::home() {
+        return Ok(PathBuf::from(home));
+    }
     let cwd = std::env::current_dir()?;
     Ok(match fibo_platform::dirs::home() {
         Some(home) if fibo_platform::dirs::is_system_start(&cwd) => home,
@@ -342,20 +347,39 @@ fn run() -> io::Result<()> {
             "这个版本没编进截图场景（visual-test），--visual-evidence 不起作用；用 cargo build -p fibo-app --features fibo-app/visual-test 重编"
         )));
     }
+    // `--attach <host>`: another machine's host, through an ssh forward this window keeps.
+    let attach = match args.iter().position(|a| a == "--attach") {
+        Some(i) => Some(
+            (args.get(i + 1).filter(|h| !h.starts_with("--")))
+                .ok_or_else(|| io::Error::other("--attach needs a host from machines.json"))?
+                .clone(),
+        ),
+        None => None,
+    };
+    if let Some(host) = &attach {
+        lifecycle::attach(host);
+    }
     let root = if let Some(i) = args.iter().position(|a| a == "--runtime") {
         PathBuf::from(
             args.get(i + 1)
                 .ok_or_else(|| io::Error::other("--runtime needs a directory"))?,
         )
+    } else if let Some(host) = &attach {
+        attach::root(host)?
     } else {
         fibo_core::legacy::runtime_dir(
             &fibo_platform::dirs::home().ok_or_else(|| io::Error::other("HOME unavailable"))?,
         )
     };
     fibo_core::plugin_context::set_runtime(&root);
-    let instance_dir = fibo_platform::dirs::home()
-        .ok_or_else(|| io::Error::other("HOME unavailable"))?
-        .join(".local/share/mooring-client");
+    // An attached window is one beside this machine's own, with its own lock: opening it
+    // again brings the same window back, before a second forward starts.
+    let instance_dir = match attach {
+        Some(_) => root.join("client"),
+        None => fibo_platform::dirs::home()
+            .ok_or_else(|| io::Error::other("HOME unavailable"))?
+            .join(".local/share/mooring-client"),
+    };
     // Visual evidence uses its explicitly isolated runtime without forwarding to or
     // replacing the user's running workbench.
     #[cfg(feature = "visual-test")]
@@ -368,6 +392,9 @@ fn run() -> io::Result<()> {
         lifecycle::Admission::Forwarded => return Ok(()),
         lifecycle::Admission::Primary(guard, events) => (guard, events),
     };
+    if let Some(host) = &attach {
+        attach::start(host, &root)?;
+    }
     let initial = load_workspace(&root);
     let icon_file = instance_dir.join("app-icon");
     #[cfg(feature = "visual-test")]
@@ -386,6 +413,7 @@ fn run() -> io::Result<()> {
     app.run(move |cx: &mut App| {
         use futures::StreamExt;
         cx.on_action(|_: &Quit, cx| cx.quit());
+        cx.on_app_quit(|_| async { attach::stop() }).detach();
         #[cfg(feature = "visual-test")]
         cx.on_app_quit(|_| async { stop_evidence_host() }).detach();
         cx.on_action(|_: &ShowMenuPanel, _| desktop::show());

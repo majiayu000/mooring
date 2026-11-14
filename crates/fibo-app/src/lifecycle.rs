@@ -8,6 +8,51 @@ use std::{
     time::Duration,
 };
 
+/// `--attach`: this window works a host it does not own, such as another machine's through
+/// a forwarded socket. It never starts, stops or replaces that host, and a build that
+/// differs from this app's is not stale here: replacing it would hand its terminals to a
+/// host on this machine, or stop whatever local process has its pid.
+static ATTACHED: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+/// This window works `host`'s own host from now on.
+pub fn attach(host: &str) {
+    let _ = ATTACHED.set(host.to_owned());
+}
+pub fn attached() -> bool {
+    ATTACHED.get().is_some()
+}
+/// What this window calls the machine whose host it works: 本机, or the attached one.
+pub fn here() -> String {
+    ATTACHED
+        .get()
+        .cloned()
+        .unwrap_or_else(|| t!("本机").to_owned())
+}
+/// `$HOME` of the machine whose host this window works: the folders it offers are there.
+pub fn home_str() -> Option<String> {
+    match attached() {
+        true => crate::attach::home(),
+        false => fibo_platform::dirs::home_str(),
+    }
+}
+/// What a new terminal starts: the attached machine's login shell, else this one's.
+pub fn shell() -> String {
+    crate::attach::shell().unwrap_or_else(fibo_platform::shell::interactive)
+}
+fn not_attached() -> io::Result<()> {
+    refuse_attached(attached())
+}
+fn refuse_attached(attached: bool) -> io::Result<()> {
+    match attached {
+        true => Err(io::Error::other(t!("挂接的后台不由这个窗口启动或停止"))),
+        false => Ok(()),
+    }
+}
+/// A host running other code than this app is stale, unless this window is attached to
+/// it: then it is another machine's, and replacing it is that machine's to do.
+fn treated_stale(stale: bool, attached: bool) -> bool {
+    stale && !attached
+}
+
 pub struct Instance {
     _lock: File,
     socket: PathBuf,
@@ -121,6 +166,7 @@ pub fn host_program() -> io::Result<PathBuf> {
 /// Stops the host serving `root` and waits until its socket stops answering; the
 /// next start runs this app's host. Its terminals end with it.
 pub fn stop_host(root: &Path, host: &fibo_core::protocol::Build) -> io::Result<()> {
+    not_attached()?;
     let pid = if host.pid != 0 {
         host.pid
     } else {
@@ -158,6 +204,10 @@ pub fn stop_host(root: &Path, host: &fibo_core::protocol::Build) -> io::Result<(
 /// Starts this app's own host for `root` and waits until it serves. With `takeover` it
 /// first takes the running terminals over from the host serving there now, which exits.
 pub fn spawn_host(root: &Path, takeover: bool) -> io::Result<()> {
+    // An attached host is not started from here: what is started is the link to it.
+    if attached() {
+        return crate::attach::ensure(root);
+    }
     if !root.exists() {
         fibo_platform::fs::create_private_dir(root)?;
     }
@@ -267,7 +317,7 @@ pub fn connected_host(socket: &Path) -> io::Result<bool> {
             // An already running host keeps serving the code it started with, however
             // often its binary is rebuilt; fixes then look like they never landed.
             let sibling = host_program()?;
-            set_stale_host(build.stale(&sibling).then_some(build));
+            set_stale_host(treated_stale(build.stale(&sibling), attached()).then_some(build));
             Ok(true)
         }
         Reply::Error(message) if message.starts_with("protocol major ") => {
@@ -351,5 +401,22 @@ mod tests {
             peer.join().unwrap();
             std::fs::remove_file(path).unwrap();
         }
+    }
+}
+
+#[cfg(test)]
+mod attach_tests {
+    use super::*;
+
+    #[test]
+    fn an_attached_host_is_never_stopped_started_or_stale() {
+        assert!(refuse_attached(true).is_err());
+        assert!(refuse_attached(false).is_ok());
+        assert!(
+            !treated_stale(true, true),
+            "another machine's host would be replaced"
+        );
+        assert!(treated_stale(true, false));
+        assert!(!treated_stale(false, false));
     }
 }

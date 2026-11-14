@@ -46,6 +46,15 @@ pub(super) fn dim(look: &TerminalText, unfocused_split: bool, background_window:
     };
     split.max(window)
 }
+/// How far a peek taller than its overlay slides up: whole rows, so the top row is not
+/// cut in half under the title bar, and enough of them that the bottom row stays in view.
+pub(super) fn peek_lift(rows: usize, row: Pixels, shown: Pixels) -> Pixels {
+    let over = f32::from(row * rows as f32 - shown);
+    if over <= 0. || row <= px(0.) {
+        return px(0.);
+    }
+    row * (over / f32::from(row)).ceil()
+}
 /// Where the cells go inside the pane, the margin painted as the terminal's own ground. A
 /// peek keeps the terminal's exact size, so it has no margin.
 pub(super) fn inset(
@@ -215,5 +224,17 @@ impl super::Pane {
     /// Where the grid was last painted, its row height and its ground.
     pub fn grid_area(&self) -> Option<(gpui::Bounds<Pixels>, Pixels, u32)> {
         Some((self.bounds?, self.metrics?.height, self.screen.background))
+    }
+}
+#[cfg(test)]
+mod peek_lift_tests {
+    use super::peek_lift;
+    use gpui::px;
+    #[test]
+    fn a_tall_peek_slides_by_whole_rows_and_keeps_the_bottom_row() {
+        // 40 rows of 20px in a 590px overlay: 210px over, so 11 rows go above it.
+        assert_eq!(peek_lift(40, px(20.), px(590.)), px(220.));
+        assert_eq!(peek_lift(40, px(20.), px(600.)), px(200.));
+        assert_eq!(peek_lift(20, px(20.), px(590.)), px(0.));
     }
 }

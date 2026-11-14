@@ -25,7 +25,12 @@ pub(super) fn quotas(w: &Workspace, now: u64) -> Rc<[(Agent, Quota)]> {
     SEEN.with_borrow_mut(|seen| match seen {
         Some((r, t, q)) if *r == w.revision && *t == now => q.clone(),
         _ => {
-            let plugins = fibo_core::quota::from_plugins();
+            // Plugins' readings are files on this machine: an attached window shows the
+            // other machine's, which its host reads from its own sessions.
+            let plugins = match crate::lifecycle::attached() {
+                true => Vec::new(),
+                false => fibo_core::quota::from_plugins(),
+            };
             let q: Rc<[_]> = fibo_core::quota::latest(w, &plugins, now).into();
             *seen = Some((w.revision, now, q.clone()));
             q
@@ -41,7 +46,11 @@ pub(super) fn context_fills(w: &Workspace, now: u64) -> Rc<fibo_core::context_fi
     SEEN.with_borrow_mut(|seen| match seen {
         Some((r, t, f)) if *r == w.revision && *t == now => f.clone(),
         _ => {
-            let fills = Rc::new(fibo_core::context_fill::of(w));
+            // Read from transcripts on this machine; another machine's are not here.
+            let fills = Rc::new(match crate::lifecycle::attached() {
+                true => Default::default(),
+                false => fibo_core::context_fill::of(w),
+            });
             *seen = Some((w.revision, now, fills.clone()));
             fills
         }

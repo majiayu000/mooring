@@ -98,6 +98,15 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         self.layout.space_menu = None;
+        // The Finder shows this machine's folders, not the attached one's.
+        if crate::lifecycle::attached() {
+            self.error = Some(t!(
+                "{host} 上的目录不能在访达里选：在空间的目录列表里选，或在终端里 cd 过去",
+                host = crate::lifecycle::here()
+            ));
+            cx.notify();
+            return;
+        }
         let picked = cx.prompt_for_paths(gpui::PathPromptOptions {
             files: false,
             directories: true,

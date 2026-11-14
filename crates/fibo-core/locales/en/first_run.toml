@@ -3,7 +3,6 @@
 "每个 Agent 都跑在这里的真终端里。在这里启动 Claude Code 或 Codex，左边就会列出这个会话和它现在的状态：{running}、{waiting}、{review}。" = "Every agent runs in a real terminal here. Start Claude Code or Codex and the sidebar lists the session and its state: {running}, {waiting}, {review}."
 "启动一个 Agent" = "Start an agent"
 "在 {place} 打开；换文件夹用左边空间旁的 ＋" = "Opens in {place}; to use another folder, click + beside the spaces on the left"
-"打开空终端" = "Open an empty terminal"
 "不再显示" = "Don't show again"
 "启动 {name}" = "Start {name}"
 "没在登录 shell 的 PATH 里找到 {executable}。安装：{hint}" = "{executable} isn't on your login shell's PATH. Install: {hint}"

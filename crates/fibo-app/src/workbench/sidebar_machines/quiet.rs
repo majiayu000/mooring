@@ -204,11 +204,23 @@ impl Workbench {
             .on_click(cx.listener(move |this, _, _, cx| {
                 this.set_machine_quiet(index, !quiet, cx);
             }));
-            out.push(
-                self.popup(at, vec![entry.into_any_element()], window, cx, |this| {
-                    this.sidebar.machine_menu = None
-                }),
-            );
+            // That machine's own host in a window of its own, worked as this one's is.
+            let host = self.machine_host(index).unwrap_or_default();
+            let open = button("machine-menu-open-window", t!("在新窗口打开"))
+                .w_full()
+                .justify_start()
+                .border_0()
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.sidebar.machine_menu = None;
+                    if let Err(e) = crate::attach::open_window(&host) {
+                        this.error = Some(t!("没能打开 {host} 的窗口：{e}", host = &host, e));
+                    }
+                    cx.notify();
+                }));
+            let entries = vec![open.into_any_element(), entry.into_any_element()];
+            out.push(self.popup(at, entries, window, cx, |this| {
+                this.sidebar.machine_menu = None
+            }));
         }
         out
     }

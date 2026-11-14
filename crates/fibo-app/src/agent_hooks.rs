@@ -22,12 +22,16 @@ pub struct Hook {
     pub differences: Vec<String>,
 }
 
-/// The daemon beside this app, as `lifecycle` starts it.
+/// The daemon beside this app, as `lifecycle` starts it; an attached window's, on that
+/// machine, where its Agents run and their settings are.
 fn mooring(args: &[&str]) -> io::Result<Vec<u8>> {
-    let out = Command::new(crate::lifecycle::host_program()?)
-        .args(args)
-        .stdin(std::process::Stdio::null())
-        .output()?;
+    let out = match crate::attach::run(args) {
+        Some(out) => out?,
+        None => Command::new(crate::lifecycle::host_program()?)
+            .args(args)
+            .stdin(std::process::Stdio::null())
+            .output()?,
+    };
     if !out.status.success() {
         let why = String::from_utf8_lossy(&out.stderr);
         return Err(io::Error::other(why.trim().to_owned()));
