@@ -10,8 +10,8 @@ use std::collections::HashMap;
 /// 「＋」 on a machine: where to start there, shown in place of the current tab.
 pub(super) struct Start {
     pub(super) machine: usize,
-    /// The folder there to start in; unset starts where that machine picks.
-    pub(super) cwd: Option<String>,
+    /// The space there to start in (picked in the sidebar); unset, that machine picks.
+    pub(super) space: Option<fibo_remote::protocol::Space>,
     /// The tab this covers; showing another one drops it.
     pub(super) home: Option<String>,
 }
@@ -36,7 +36,7 @@ impl Workbench {
     pub(super) fn show_remote_start(
         &mut self,
         machine: usize,
-        cwd: Option<String>,
+        space: Option<fibo_remote::protocol::Space>,
         cx: &mut Context<Self>,
     ) {
         self.leave_for_dock(cx);
@@ -44,7 +44,7 @@ impl Workbench {
         self.dock = None;
         self.remote_start = Some(Start {
             machine,
-            cwd,
+            space,
             home: self.nav.tab.clone(),
         });
         cx.notify();
@@ -192,9 +192,9 @@ impl Workbench {
         }
         let mark = |agent: Agent, ink| super::board::agent_mark_in(agent, ink, T::SMALL);
         let run = |agent: Option<Agent>| {
-            let cwd = start.cwd.clone();
+            let space = start.space.clone();
             cx.listener(move |this: &mut Self, _: &gpui::ClickEvent, window, cx| {
-                this.open_remote_shell(index, cwd.clone(), agent, window, cx)
+                this.open_remote_shell(index, space.clone(), None, agent, window, cx)
             })
         };
         let mut others: Vec<gpui::AnyElement> = agents
@@ -233,8 +233,13 @@ impl Workbench {
                     .text_color(T::color(T::primary()))
                     .child(t!("在 {name} 上开始", name)),
             )
-            .when_some(start.cwd.clone(), |d, cwd| {
-                d.child(label(cwd).text_color(T::color(T::muted())))
+            // Which space there, and its folder when it has one.
+            .when_some(start.space.clone(), |d, s| {
+                let line = match s.cwd.is_empty() {
+                    true => s.name,
+                    false => format!("{} · {}", s.name, s.cwd),
+                };
+                d.child(label(line).text_color(T::color(T::muted())))
             })
             .when_some(first, |d, first| {
                 d.child(

@@ -318,7 +318,7 @@ impl Workbench {
                         .child("+")
                         .on_click(cx.listener(move |this, _, _, cx| {
                             cx.stop_propagation();
-                            this.show_remote_start(index, None, cx);
+                            this.show_remote_start(index, this.machine_space_of(index), cx);
                         })),
                 )
             })

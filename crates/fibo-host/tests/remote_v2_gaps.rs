@@ -365,6 +365,23 @@ fn open_puts_the_tab_in_the_space_named_and_without_one_where_the_folder_is() {
 
     let e = r.error(json!({ "op": "open", "cwd": elsewhere, "space": "gone", "request": "o4" }));
     assert!(e.contains("空间已经不在"), "{e}");
+
+    // A space with no folder matches no `cwd`: only its name puts the tab there, as the
+    // window's 「＋」 and 「在这里开一个终端」 send it.
+    h.call(Request::Edit {
+        edit: Edit::AddSpace(Space {
+            id: "blank".into(),
+            name: "Blank".into(),
+            cwd: String::new(),
+        }),
+        request: None,
+    })
+    .unwrap();
+    let blank = r.ok(json!({ "op": "open", "space": "blank", "request": "o5" }));
+    assert_eq!(blank["space"], "blank");
+    assert_eq!(tab_space(&h, &blank["tab"]).as_deref(), Some("blank"));
+    let unnamed = r.ok(json!({ "op": "open", "request": "o6" }));
+    assert_ne!(unnamed["space"], "blank", "no space named: the first space");
 }
 
 /// Today's tokens from logs shaped as the CLIs write them, read once and then by their growth.

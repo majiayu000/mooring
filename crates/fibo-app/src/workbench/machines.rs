@@ -8,7 +8,7 @@ use crate::machines::{Link, Remote};
 use crate::terminal::pane::Pane;
 use crate::ui::widgets::{dot, label};
 use fibo_core::status::Status;
-use fibo_remote::protocol::{Card, Phase};
+use fibo_remote::protocol::{Card, Op, Phase, Space};
 
 impl Workbench {
     /// One connection per machine in `<config>/machines.json`; with none, nothing runs.
@@ -126,7 +126,13 @@ impl Workbench {
                                 .px(px(T::S6))
                                 .text_color(T::color(T::secondary()))
                                 .on_click(cx.listener(
-                                    move |this, _, _, cx| this.show_remote_start(index, None, cx),
+                                    move |this, _, _, cx| {
+                                        this.show_remote_start(
+                                            index,
+                                            this.machine_space_of(index),
+                                            cx,
+                                        )
+                                    },
                                 )),
                             )
                         },
@@ -298,12 +304,13 @@ impl Workbench {
 }
 
 impl Workbench {
-    /// The start page's choice: a shell in a new tab there, in `cwd` or its first space's
-    /// folder, running `agent` when one was picked, docked here. Named, so a resend opens
-    /// one.
+    /// The start page's choice, or a split's: a shell in a new tab there, in `space` (else
+    /// where its host puts it) and `cwd` (else that space's folder), running `agent` when one
+    /// was picked, docked here. Named, so a resend opens one.
     pub(super) fn open_remote_shell(
         &mut self,
         index: usize,
+        space: Option<Space>,
         cwd: Option<String>,
         agent: Option<Agent>,
         window: &mut Window,
@@ -319,14 +326,8 @@ impl Workbench {
             let view = remote.view.lock().unwrap();
             (view.machine.as_ref()).map_or_else(|| view.spec.host.clone(), |m| m.name.clone())
         };
-        let op = fibo_remote::protocol::Op::Open {
-            cwd,
-            space: None,
-            agent: agent.map(|a| a.key().to_lowercase()),
-            prompt: None,
-            resume: None,
-            request: Some(fibo_core::protocol::RequestId::fresh().id),
-        };
+        let request = fibo_core::protocol::RequestId::fresh().id;
+        let op = open_shell(space.as_ref(), cwd, agent, request);
         let sent = cx.background_spawn(async move {
             linked
                 .client
@@ -406,6 +407,26 @@ impl Workbench {
     }
 }
 
+/// The `open` for a shell there. A space picked in this window is named, so one with no
+/// folder (its host cannot match it by `cwd`) still gets it; a folder goes too, `cwd` or the
+/// space's, for a host too old to read `space`. With none, the host picks, as before.
+fn open_shell(
+    space: Option<&Space>,
+    cwd: Option<String>,
+    agent: Option<Agent>,
+    request: String,
+) -> Op {
+    let own = space.map(|s| s.cwd.clone()).filter(|c| !c.is_empty());
+    Op::Open {
+        cwd: cwd.or(own),
+        space: space.map(|s| s.id.clone()),
+        agent: agent.map(|a| a.key().to_lowercase()),
+        prompt: None,
+        resume: None,
+        request: Some(request),
+    }
+}
+
 /// A peek's key for another machine's terminal: never equal to a terminal of this one.
 pub(super) fn remote_key(view: &crate::machines::View, terminal: &str) -> String {
     let machine = view
@@ -421,6 +442,12 @@ pub(super) fn shown_title(card: &Card) -> String {
 }
 
 impl Workbench {
+    /// The space another machine's terminal is in there, for a split beside it.
+    pub(super) fn machine_card_space(&self, r: &super::peek::RemoteTitle) -> Option<Space> {
+        let view = self.machines.get(r.machine)?.view.lock().unwrap();
+        let card = view.terminals.iter().find(|c| c.id == r.terminal)?;
+        view.spaces.iter().find(|s| s.id == card.space).cloned()
+    }
     /// The folder another machine's terminal is in, for a split beside it; unset when its
     /// list says none.
     pub(super) fn machine_card_cwd(&self, r: &super::peek::RemoteTitle) -> Option<String> {
@@ -578,5 +605,64 @@ impl Workbench {
         let read_only = (peek.remote.as_ref())
             .is_some_and(|r| !r.slot.lock().unwrap().as_ref().is_some_and(|l| l.typing));
         Some((peek.pane.clone(), read_only))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn space(id: &str, cwd: &str) -> Space {
+        Space {
+            id: id.into(),
+            name: id.into(),
+            cwd: cwd.into(),
+        }
+    }
+    fn picked(op: Op) -> (Option<String>, Option<String>) {
+        match op {
+            Op::Open { cwd, space, .. } => (cwd, space),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_shell_opened_in_a_picked_space_names_that_space() {
+        // A space with no folder: only its id can put the shell there.
+        let blank = space("blank", "");
+        assert_eq!(
+            picked(open_shell(Some(&blank), None, None, "r1".into())),
+            (None, Some("blank".into()))
+        );
+        let own = space("own", "/work/own");
+        assert_eq!(
+            picked(open_shell(Some(&own), None, None, "r2".into())),
+            (Some("/work/own".into()), Some("own".into()))
+        );
+        assert_eq!(
+            picked(open_shell(None, None, None, "r3".into())),
+            (None, None)
+        );
+        // A split beside a pane: its space, the folder it is in now, and the Agent picked.
+        let agent = Agent::all().into_iter().next().expect("an Agent");
+        let Op::Open {
+            cwd,
+            space,
+            agent: sent,
+            ..
+        } = open_shell(
+            Some(&own),
+            Some("/work/own/sub".into()),
+            Some(agent),
+            "r4".into(),
+        )
+        else {
+            panic!("an open");
+        };
+        assert_eq!(
+            (cwd.as_deref(), space.as_deref()),
+            (Some("/work/own/sub"), Some("own"))
+        );
+        assert_eq!(sent, Some(agent.key().to_lowercase()));
     }
 }

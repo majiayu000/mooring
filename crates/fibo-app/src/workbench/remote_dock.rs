@@ -193,8 +193,13 @@ impl Workbench {
         if !r.slot.lock().unwrap().as_ref().is_some_and(|l| l.managing) {
             return;
         }
-        let (machine, cwd) = (r.machine, self.machine_card_cwd(r));
-        self.open_remote_shell(machine, cwd, None, window, cx);
+        // Beside it: in its space there, in the folder it is in now.
+        let (machine, space, cwd) = (
+            r.machine,
+            self.machine_card_space(r),
+            self.machine_card_cwd(r),
+        );
+        self.open_remote_shell(machine, space, cwd, None, window, cx);
     }
 }
 
@@ -234,7 +239,7 @@ impl Workbench {
         cx: &mut Context<Self>,
     ) {
         let (_, _, first) = self.machine_agents(machine);
-        self.open_remote_shell(machine, None, first, window, cx);
+        self.open_remote_shell(machine, None, None, first, window, cx);
     }
     /// The docked panes in layout order, each with whether it is worked from here.
     pub fn visual_dock_panes(&self, cx: &gpui::App) -> Vec<(String, bool)> {
